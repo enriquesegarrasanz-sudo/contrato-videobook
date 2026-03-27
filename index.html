@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Contrato de Servicios — Videobook</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --accent: #c8933a;
+    --accent-light: #f5ede0;
+    --muted: #6b6b80;
+    --line: #d8d8e8;
+    --bg: #f7f6f2;
+    --white: #ffffff;
+    --radius: 4px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--ink);
+    padding: 2.5rem 2rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    border: 1px solid rgba(200,147,58,0.2);
+    border-radius: 50%;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: -40px;
+    width: 130px; height: 130px;
+    border: 1px solid rgba(200,147,58,0.15);
+    border-radius: 50%;
+  }
+  .header-label {
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+  }
+  .header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.5rem, 5vw, 2.1rem);
+    color: #fff;
+    font-weight: 400;
+    line-height: 1.25;
+    margin-bottom: 0.4rem;
+  }
+  .header-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    font-weight: 300;
+  }
+
+  /* PROGRESS */
+  .progress-bar {
+    height: 3px;
+    background: var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  /* MAIN */
+  .container {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+
+  /* SECTION */
+  .section {
+    margin-bottom: 2.5rem;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .section.visible { opacity: 1; transform: translateY(0); }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .section-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    color: var(--accent);
+    line-height: 1;
+    min-width: 28px;
+  }
+  .section-title {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .section p {
+    color: #3a3a4a;
+    margin-bottom: 0.75rem;
+    font-size: 14px;
+    line-height: 1.75;
+  }
+
+  /* PRICE TABLE */
+  .price-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 14px;
+  }
+  .price-table th {
+    background: var(--ink);
+    color: #fff;
+    padding: 0.6rem 0.9rem;
+    text-align: left;
+    font-weight: 400;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .price-table td {
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .price-table tr:nth-child(even) td { background: var(--accent-light); }
+  .price-table .price-val {
+    font-weight: 500;
+    color: var(--ink);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .price-main { font-size: 1.3rem; font-family: 'Playfair Display', serif; }
+
+  /* SERVICES LIST */
+  .services-list { list-style: none; margin: 0.5rem 0; }
+  .services-list li {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+    color: #3a3a4a;
+    align-items: flex-start;
+  }
+  .services-list li:last-child { border-bottom: none; }
+  .svc-icon {
+    color: var(--accent);
+    font-size: 15px;
+    min-width: 20px;
+    margin-top: 2px;
+  }
+
+  /* HIGHLIGHT BOX */
+  .highlight-box {
+    background: var(--accent-light);
+    border-left: 3px solid var(--accent);
+    padding: 1rem 1.1rem;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 1rem 0;
+    font-size: 13.5px;
+    color: #3a3a4a;
+    line-height: 1.7;
+  }
+
+  /* FORM FIELDS */
+  .form-group {
+    margin-bottom: 1.1rem;
+  }
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+    font-weight: 500;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.65rem 0.85rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    background: var(--white);
+    color: var(--ink);
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  @media(max-width: 500px) { .form-row { grid-template-columns: 1fr; } }
+
+  /* CHECKBOXES */
+  .check-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    background: var(--white);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .check-group:hover { border-color: var(--accent); background: var(--accent-light); }
+  .check-group.checked { border-color: var(--accent); background: var(--accent-light); }
+  .check-group input[type=checkbox] { display: none; }
+  .check-box {
+    width: 20px; height: 20px;
+    border: 2px solid var(--line);
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    min-width: 20px;
+    margin-top: 1px;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--white);
+  }
+  .check-group.checked .check-box {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  .check-box::after {
+    content: '✓';
+    color: #fff;
+    font-size: 12px;
+    display: none;
+  }
+  .check-group.checked .check-box::after { display: block; }
+  .check-label { font-size: 13.5px; color: #3a3a4a; line-height: 1.55; }
+  .check-label strong { color: var(--ink); display: block; margin-bottom: 2px; font-size: 13px; }
+
+  /* SIGNATURE PAD */
+  .sig-container {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--white);
+    overflow: hidden;
+  }
+  .sig-label-bar {
+    background: var(--ink);
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sig-clear {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0;
+    font-family: 'DM Sans', sans-serif;
+  }
+  canvas#sigPad {
+    display: block;
+    width: 100%;
+    height: 150px;
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .sig-hint {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 0.5rem;
+    pointer-events: none;
+  }
+
+  /* EMAIL FIELD */
+  .email-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    align-items: end;
+  }
+
+  /* BUTTONS */
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 0.9rem 1.5rem;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: var(--ink);
+    color: #fff;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-secondary {
+    background: var(--accent);
+    color: #fff;
+    margin-top: 0.75rem;
+  }
+  .btn-secondary:hover { opacity: 0.88; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-group { margin-top: 1.5rem; }
+
+  /* STATUS */
+  .status-msg {
+    display: none;
+    padding: 0.8rem 1rem;
+    border-radius: var(--radius);
+    font-size: 13.5px;
+    margin-top: 0.75rem;
+    text-align: center;
+  }
+  .status-msg.ok { background: #e8f5e9; color: #2e7d32; display: block; }
+  .status-msg.err { background: #fce4ec; color: #c62828; display: block; }
+  .status-msg.sending { background: var(--accent-light); color: var(--ink); display: block; }
+
+  /* DATE */
+  .doc-date {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+    margin-bottom: 1.5rem;
+    font-style: italic;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--line);
+    margin: 2rem 0;
+  }
+
+  .footer-note {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-label">Documento profesional</div>
+  <h1>Contrato de Servicios<br><em>Videobook · Portfolio de Actor</em></h1>
+  <div class="header-sub">Lee, completa y firma desde tu móvil</div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<div class="container">
+
+  <div class="doc-date" id="docDate"></div>
+
+  <!-- 1. PARTES -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <span class="section-num">1</span>
+      <span class="section-title">Partes del contrato</span>
+    </div>
+    <p>El presente contrato se celebra entre el prestador de servicios audiovisuales y el cliente identificado a continuación.</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Nombre completo *</label>
+        <input type="text" id="clientName" placeholder="Tu nombre y apellidos"/>
+      </div>
+      <div class="form-group">
+        <label>NIF / DNI *</label>
+        <input type="text" id="clientNIF" placeholder="00000000A"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Correo electrónico *</label>
+      <input type="email" id="clientEmail" placeholder="tu@email.com"/>
+    </div>
+    <div class="form-group">
+      <label>Teléfono</label>
+      <input type="tel" id="clientPhone" placeholder="+34 6XX XXX XXX"/>
+    </div>
+  </div>
+
+  <!-- 2. OBJETO -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <span class="section-num">2</span>
+      <span class="section-title">Objeto del contrato</span>
+    </div>
+    <p>El prestador se compromete a realizar una escena de videobook para el portfolio profesional de actor/actriz del cliente, cubriendo todas las fases del proceso creativo y técnico.</p>
+  </div>
+
+  <!-- 3. SERVICIOS -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <span class="section-num">3</span>
+      <span class="section-title">Servicios incluidos</span>
+    </div>
+    <p>El precio de <strong>300 €</strong> cubre íntegramente:</p>
+    <ul class="services-list">
+      <li><span class="svc-icon">◆</span><span><strong>Charla previa</strong> — sesión de trabajo para definir el perfil artístico, la escena y los objetivos del videobook.</span></li>
+      <li><span class="svc-icon">◆</span><span><strong>Creación del guión</strong> — redacción profesional de la escena adaptada al perfil del cliente.</span></li>
+      <li><span class="svc-icon">◆</span><span><strong>Ensayo</strong> — sesión de preparación previa al rodaje para trabajar el texto, los tiempos y los recursos interpretativos.</span></li>
+      <li><span class="svc-icon">◆</span><span><strong>Grabación</strong> — rodaje de la escena con material técnico profesional.</span></li>
+      <li><span class="svc-icon">◆</span><span><strong>Edición</strong> — montaje, corrección de color y postproducción completa.</span></li>
+      <li><span class="svc-icon">◆</span><span><strong>Pack de fotografías</strong> — fotos del rodaje y del resultado final para uso en portfolio.</span></li>
+      <li><span class="svc-icon">◆</span><span><strong>Dos revisiones incluidas</strong> — el cliente puede solicitar hasta dos rondas de ajustes sin coste adicional.</span></li>
+    </ul>
+  </div>
+
+  <!-- 4. REVISIONES -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <span class="section-num">4</span>
+      <span class="section-title">Revisiones adicionales</span>
+    </div>
+    <p>Las dos primeras revisiones están incluidas en el precio base. A partir de la tercera, cada ronda adicional tiene un suplemento de <strong>30 €</strong>, abonables antes de la entrega del material revisado.</p>
+  </div>
+
+  <!-- 5. TRANSPORTE -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <span class="section-num">5</span>
+      <span class="section-title">Transporte y desplazamiento</span>
+    </div>
+    <div class="highlight-box">
+      El transporte no está incluido en el precio base. En caso de ser necesario para el traslado del equipo de rodaje, el coste irá aparte y se facturará según el trayecto real. El prestador optará preferentemente por transporte compartido (tipo Cabify Pool / Uber), lo que mantiene el coste en niveles razonables. El importe se acordará y confirmará previamente.
+    </div>
+  </div>
+
+  <!-- 6. IA -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <span class="section-num">6</span>
+      <span class="section-title">Uso de Inteligencia Artificial y grabación de la charla previa</span>
+    </div>
+    <p>Para desarrollar un guión más preciso y de mayor calidad, el prestador utiliza herramientas de inteligencia artificial como co-guionista en su proceso creativo.</p>
+    <p>Para ello es necesario contar con el consentimiento expreso del cliente para grabar la charla previa. Dicha grabación se utilizará exclusivamente como material de trabajo para la elaboración del guión, permitiendo comprender en profundidad el perfil artístico, la voz y los objetivos del cliente.</p>
+    <p>La IA actúa como herramienta de apoyo para el análisis del material y la generación de propuestas dramatúrgicas, aportando un punto de vista adicional que enriquece el proceso creativo.</p>
+  </div>
+
+  <!-- 7. CONFIDENCIALIDAD -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <span class="section-num">7</span>
+      <span class="section-title">Confidencialidad y protección de datos</span>
+    </div>
+    <p>Todo el material generado — incluyendo la grabación de la charla previa, los datos personales facilitados y cualquier contenido derivado — tiene carácter estrictamente confidencial y será tratado conforme al Reglamento (UE) 2016/679 (RGPD) y la normativa española de protección de datos.</p>
+    <p>El prestador se compromete a utilizar el material exclusivamente para la finalidad descrita, no compartirlo con terceros bajo ningún concepto, y eliminar la grabación una vez concluida la prestación del servicio, salvo acuerdo expreso en contrario.</p>
+  </div>
+
+  <!-- 8. PRECIO -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <span class="section-num">8</span>
+      <span class="section-title">Precio y forma de pago</span>
+    </div>
+    <table class="price-table">
+      <thead><tr><th>Concepto</th><th>Importe</th></tr></thead>
+      <tbody>
+        <tr><td>Servicio base completo (todo incluido)</td><td class="price-val price-main">300 €</td></tr>
+        <tr><td>Revisiones adicionales (desde la 3.ª)</td><td class="price-val">30 € / ronda</td></tr>
+        <tr><td>Transporte (si aplica)</td><td class="price-val">Según trayecto</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13px;color:var(--muted)">Forma de pago: 50 % en el momento de la firma del contrato, 50 % restante a la entrega del material final, salvo acuerdo distinto.</p>
+  </div>
+
+  <!-- 9. DERECHOS -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <span class="section-num">9</span>
+      <span class="section-title">Derechos de uso</span>
+    </div>
+    <p>El material editado y entregado podrá ser utilizado por el cliente para los fines exclusivos de su portfolio y presentación profesional como actor/actriz. Cualquier uso comercial o difusión en otros formatos deberá acordarse expresamente por escrito.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 10. FIRMAS Y CONSENTIMIENTOS -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <span class="section-num">10</span>
+      <span class="section-title">Consentimientos y firma</span>
+    </div>
+
+    <div class="check-group" onclick="toggleCheck('chk1')">
+      <input type="checkbox" id="chk1"/>
+      <div class="check-box"></div>
+      <div class="check-label">
+        <strong>Consentimiento de grabación de la charla previa</strong>
+        Consiento que la charla previa sea grabada con la finalidad exclusiva de elaborar el guión, tal y como se describe en el apartado 6 de este contrato.
+      </div>
+    </div>
+
+    <div class="check-group" onclick="toggleCheck('chk2')">
+      <input type="checkbox" id="chk2"/>
+      <div class="check-box"></div>
+      <div class="check-label">
+        <strong>Aceptación del contrato</strong>
+        He leído y acepto íntegramente los términos y condiciones del presente contrato.
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top:1.25rem">
+      <label>Firma del cliente</label>
+      <div class="sig-container">
+        <div class="sig-label-bar">
+          <span>Firma con el dedo o el ratón</span>
+          <button class="sig-clear" onclick="clearSignature()">Borrar</button>
+        </div>
+        <canvas id="sigPad"></canvas>
+      </div>
+      <div class="sig-hint" id="sigHint">↑ Dibuja tu firma en el recuadro</div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnPDF" onclick="generatePDF()">⬇ Descargar contrato firmado (PDF)</button>
+
+      <div style="margin-top:1.25rem">
+        <div class="form-group">
+          <label>Tu email (para enviarte una copia)</label>
+          <input type="email" id="emailCopy" placeholder="tu@email.com"/>
+        </div>
+        <div class="form-group">
+          <label>Email del prestador *</label>
+          <input type="email" id="emailPrestador" placeholder="email del realizador"/>
+        </div>
+        <button class="btn btn-secondary" id="btnEmail" onclick="sendByEmail()">✉ Enviar contrato firmado por email</button>
+      </div>
+
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Documento confidencial — uso exclusivo de las partes firmantes.<br>
+    Generado digitalmente · Madrid
+  </div>
+
+</div>
+
+<script>
+// DATE
+const now = new Date();
+document.getElementById('docDate').textContent = 'Madrid, ' + now.toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' });
+
+// SCROLL ANIMATION
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.section').forEach(s => observer.observe(s));
+
+// PROGRESS
+window.addEventListener('scroll', () => {
+  const doc = document.documentElement;
+  const pct = (doc.scrollTop / (doc.scrollHeight - doc.clientHeight)) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+});
+
+// CHECKBOXES
+function toggleCheck(id) {
+  const input = document.getElementById(id);
+  input.checked = !input.checked;
+  input.closest('.check-group').classList.toggle('checked', input.checked);
+}
+
+// SIGNATURE PAD
+const canvas = document.getElementById('sigPad');
+const ctx = canvas.getContext('2d');
+let drawing = false;
+let hasSig = false;
+
+function resizeCanvas() {
+  const ratio = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * ratio;
+  canvas.height = rect.height * ratio;
+  ctx.scale(ratio, ratio);
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+window.addEventListener('resize', () => { if(!hasSig) resizeCanvas(); });
+setTimeout(resizeCanvas, 100);
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  if(e.touches) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+canvas.addEventListener('mousedown', e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+canvas.addEventListener('mousemove', e => { if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSig = true; document.getElementById('sigHint').style.display='none'; });
+canvas.addEventListener('mouseup', () => drawing = false);
+canvas.addEventListener('mouseleave', () => drawing = false);
+
+canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
+canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSig = true; document.getElementById('sigHint').style.display='none'; }, { passive: false });
+canvas.addEventListener('touchend', () => drawing = false);
+
+function clearSignature() {
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  hasSig = false;
+  document.getElementById('sigHint').style.display='block';
+}
+
+// VALIDATION
+function validate() {
+  const name = document.getElementById('clientName').value.trim();
+  const nif = document.getElementById('clientNIF').value.trim();
+  const email = document.getElementById('clientEmail').value.trim();
+  const chk1 = document.getElementById('chk1').checked;
+  const chk2 = document.getElementById('chk2').checked;
+
+  if(!name) { showStatus('Por favor, introduce tu nombre completo.', 'err'); return false; }
+  if(!nif) { showStatus('Por favor, introduce tu NIF / DNI.', 'err'); return false; }
+  if(!email) { showStatus('Por favor, introduce tu correo electrónico.', 'err'); return false; }
+  if(!chk1) { showStatus('Debes marcar el consentimiento de grabación.', 'err'); return false; }
+  if(!chk2) { showStatus('Debes aceptar los términos del contrato.', 'err'); return false; }
+  if(!hasSig) { showStatus('Por favor, añade tu firma en el recuadro.', 'err'); return false; }
+  return true;
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.className = 'status-msg ' + type;
+  el.textContent = msg;
+}
+
+// BUILD PDF TEXT
+function buildPDFContent(doc, name, nif, email, phone, dateStr) {
+  const lm = 20, rm = 190, lw = rm - lm;
+  let y = 20;
+
+  function addLine(h = 6) { y += h; }
+  function checkPage() { if(y > 270) { doc.addPage(); y = 20; } }
+
+  // HEADER
+  doc.setFillColor(26, 26, 46);
+  doc.rect(0, 0, 210, 40, 'F');
+  doc.setTextColor(200, 147, 58);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('CONTRATO DE SERVICIOS AUDIOVISUALES', 105, 14, {align:'center'});
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Videobook · Portfolio de Actor', 105, 25, {align:'center'});
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(180,180,200);
+  doc.text('Madrid, ' + dateStr, 105, 34, {align:'center'});
+
+  y = 52;
+  doc.setTextColor(26,26,46);
+
+  function sectionTitle(num, title) {
+    checkPage();
+    doc.setDrawColor(200, 147, 58);
+    doc.setLineWidth(0.5);
+    doc.line(lm, y, rm, y);
+    addLine(5);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(200, 147, 58);
+    doc.text(num + '. ' + title.toUpperCase(), lm, y);
+    addLine(6);
+    doc.setTextColor(26,26,46);
+  }
+
+  function para(text, size=9) {
+    doc.setFontSize(size);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60,60,74);
+    const lines = doc.splitTextToSize(text, lw);
+    lines.forEach(line => { checkPage(); doc.text(line, lm, y); addLine(5); });
+    addLine(2);
+  }
+
+  function bold(text, size=9) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(26,26,46);
+    doc.setFontSize(size);
+    checkPage();
+    doc.text(text, lm, y);
+    addLine(6);
+  }
+
+  // 1. PARTES
+  sectionTitle('1', 'Partes del contrato');
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(26,26,46);
+  doc.text('Cliente:', lm, y); addLine(5);
+  doc.setFont('helvetica','normal'); doc.setTextColor(60,60,74);
+  doc.text('Nombre: ' + name, lm+4, y); addLine(5);
+  doc.text('NIF: ' + nif, lm+4, y); addLine(5);
+  doc.text('Email: ' + email, lm+4, y); addLine(5);
+  if(phone) { doc.text('Teléfono: ' + phone, lm+4, y); addLine(5); }
+  addLine(3);
+
+  // 2. OBJETO
+  sectionTitle('2', 'Objeto del contrato');
+  para('El prestador se compromete a realizar una escena de videobook para el portfolio profesional de actor/actriz del cliente, cubriendo todas las fases del proceso creativo y técnico.');
+
+  // 3. SERVICIOS
+  sectionTitle('3', 'Servicios incluidos (300 €)');
+  const svcs = [
+    'Charla previa de desarrollo artístico.',
+    'Creación del guión adaptado al perfil del cliente.',
+    'Ensayo previo al rodaje.',
+    'Grabación de la escena.',
+    'Edición, corrección de color y postproducción.',
+    'Pack de fotografías del rodaje y resultado final.',
+    'Dos (2) revisiones incluidas sin coste adicional.',
+  ];
+  svcs.forEach(s => { checkPage(); doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(60,60,74); doc.text('– ' + s, lm+3, y); addLine(5); });
+  addLine(2);
+
+  // 4–9 (condensed)
+  sectionTitle('4', 'Revisiones adicionales');
+  para('Las dos primeras revisiones están incluidas. A partir de la tercera, cada ronda adicional tiene un suplemento de 30 €.');
+
+  sectionTitle('5', 'Transporte y desplazamiento');
+  para('El transporte no está incluido. En caso de ser necesario, el coste irá aparte según el trayecto real, acordado previamente. El prestador optará por transporte compartido (Cabify Pool / Uber) para mantener el coste razonable.');
+
+  sectionTitle('6', 'Uso de Inteligencia Artificial y grabación de la charla previa');
+  para('El prestador utiliza herramientas de IA como co-guionista en su proceso creativo. Para ello cuenta con el consentimiento expreso del cliente para grabar la charla previa. Dicha grabación se utilizará exclusivamente para la elaboración del guión y será eliminada una vez concluido el servicio.');
+
+  sectionTitle('7', 'Confidencialidad y protección de datos');
+  para('Todo el material generado tiene carácter estrictamente confidencial y será tratado conforme al RGPD (UE) 2016/679 y la normativa española de protección de datos. El prestador se compromete a no compartir el material con terceros ni utilizarlo para ninguna otra finalidad.');
+
+  sectionTitle('8', 'Precio y forma de pago');
+  para('Servicio base: 300 €. Revisiones adicionales: 30 € / ronda. Transporte: según trayecto. Pago: 50 % en la firma, 50 % a la entrega, salvo acuerdo distinto.');
+
+  sectionTitle('9', 'Derechos de uso');
+  para('El material entregado podrá ser utilizado para fines exclusivos de portfolio y presentación profesional. Cualquier uso comercial deberá acordarse por escrito.');
+
+  // FIRMAS
+  addLine(4);
+  sectionTitle('10', 'Consentimientos y firma');
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(60,60,74);
+  doc.text('[✓] Consiento la grabación de la charla previa (véase apartado 6).', lm, y); addLine(5);
+  doc.text('[✓] He leído y acepto íntegramente los términos del contrato.', lm, y); addLine(5);
+  addLine(4);
+
+  return y;
+}
+
+// GENERATE PDF
+async function generatePDF() {
+  if(!validate()) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+  const name = document.getElementById('clientName').value.trim();
+  const nif = document.getElementById('clientNIF').value.trim();
+  const email = document.getElementById('clientEmail').value.trim();
+  const phone = document.getElementById('clientPhone').value.trim();
+  const dateStr = now.toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' });
+
+  let y = buildPDFContent(doc, name, nif, email, phone, dateStr);
+
+  // Signature
+  if(hasSig) {
+    if(y > 230) { doc.addPage(); y = 20; }
+    doc.setFontSize(8); doc.setTextColor(100,100,120);
+    doc.text('Firma del cliente:', 20, y + 4);
+    const sigData = canvas.toDataURL('image/png');
+    doc.addImage(sigData, 'PNG', 20, y + 6, 80, 30);
+    y += 42;
+  }
+
+  // Footer
+  doc.setFontSize(7); doc.setTextColor(150,150,170);
+  doc.text('Documento confidencial — uso exclusivo de las partes firmantes · Madrid · ' + dateStr, 105, 290, {align:'center'});
+
+  doc.save('Contrato_Videobook_' + name.replace(/\s+/g, '_') + '.pdf');
+  showStatus('PDF descargado correctamente. Compártelo por WhatsApp.', 'ok');
+}
+
+// SEND BY EMAIL
+async function sendByEmail() {
+  if(!validate()) return;
+  const emailDest = document.getElementById('emailPrestador').value.trim();
+  if(!emailDest) { showStatus('Introduce el email del prestador.', 'err'); return; }
+
+  showStatus('Preparando el envío...', 'sending');
+
+  const name = document.getElementById('clientName').value.trim();
+  const nif = document.getElementById('clientNIF').value.trim();
+  const email = document.getElementById('clientEmail').value.trim();
+  const phone = document.getElementById('clientPhone').value.trim();
+  const dateStr = now.toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' });
+
+  // Build PDF
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+  let y = buildPDFContent(doc, name, nif, email, phone, dateStr);
+  if(hasSig) {
+    if(y > 230) { doc.addPage(); y = 20; }
+    const sigData = canvas.toDataURL('image/png');
+    doc.addImage(sigData, 'PNG', 20, y + 6, 80, 30);
+  }
+  doc.setFontSize(7); doc.setTextColor(150,150,170);
+  doc.text('Documento confidencial · Madrid · ' + dateStr, 105, 290, {align:'center'});
+
+  const pdfBase64 = doc.output('datauristring').split(',')[1];
+
+  // mailto fallback (doesn't support attachments but opens client)
+  const subject = encodeURIComponent('Contrato Videobook firmado – ' + name);
+  const body = encodeURIComponent(
+    'Hola,\n\nTe envío el contrato de videobook firmado digitalmente.\n\n' +
+    'Cliente: ' + name + '\nNIF: ' + nif + '\nFecha: ' + dateStr + '\n\n' +
+    'Por favor descarga el PDF adjunto desde este enlace o solicítalo directamente.\n\n' +
+    'Un saludo,\n' + name
+  );
+
+  // Download + open email client simultaneously
+  doc.save('Contrato_Videobook_' + name.replace(/\s+/g, '_') + '.pdf');
+  setTimeout(() => {
+    window.location.href = 'mailto:' + emailDest + '?subject=' + subject + '&body=' + body;
+    showStatus('PDF descargado. Se ha abierto tu app de email para completar el envío (adjunta el PDF manualmente).', 'ok');
+  }, 600);
+}
+</script>
+</body>
+</html>
