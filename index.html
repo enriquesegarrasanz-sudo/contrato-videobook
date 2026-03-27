@@ -834,7 +834,7 @@ async function sendByEmail() {
   const emailDest = document.getElementById('emailPrestador').value.trim();
   if(!emailDest) { showStatus('Introduce el email del prestador.', 'err'); return; }
 
-  showStatus('Preparando el envío...', 'sending');
+  showStatus('Enviando...', 'sending');
 
   const name = document.getElementById('clientName').value.trim();
   const nif = document.getElementById('clientNIF').value.trim();
@@ -842,7 +842,7 @@ async function sendByEmail() {
   const phone = document.getElementById('clientPhone').value.trim();
   const dateStr = now.toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' });
 
-  // Build PDF
+  // Build and download PDF
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
   let y = buildPDFContent(doc, name, nif, email, phone, dateStr);
@@ -853,24 +853,34 @@ async function sendByEmail() {
   }
   doc.setFontSize(7); doc.setTextColor(150,150,170);
   doc.text('Documento confidencial · Madrid · ' + dateStr, 105, 290, {align:'center'});
-
-  const pdfBase64 = doc.output('datauristring').split(',')[1];
-
-  // mailto fallback (doesn't support attachments but opens client)
-  const subject = encodeURIComponent('Contrato Videobook firmado – ' + name);
-  const body = encodeURIComponent(
-    'Hola,\n\nTe envío el contrato de videobook firmado digitalmente.\n\n' +
-    'Cliente: ' + name + '\nNIF: ' + nif + '\nFecha: ' + dateStr + '\n\n' +
-    'Por favor descarga el PDF adjunto desde este enlace o solicítalo directamente.\n\n' +
-    'Un saludo,\n' + name
-  );
-
-  // Download + open email client simultaneously
   doc.save('Contrato_Videobook_' + name.replace(/\s+/g, '_') + '.pdf');
-  setTimeout(() => {
-    window.location.href = 'mailto:' + emailDest + '?subject=' + subject + '&body=' + body;
-    showStatus('PDF descargado. Se ha abierto tu app de email para completar el envío (adjunta el PDF manualmente).', 'ok');
-  }, 600);
+
+  // Send email notification via Web3Forms
+  const message = `Nuevo contrato firmado digitalmente.\n\nCliente: ${name}\nNIF: ${nif}\nTeléfono: ${phone || 'No indicado'}\nEmail cliente: ${email}\nFecha: ${dateStr}\n\nEl PDF ha sido descargado por el cliente. Solicítalo si es necesario.`;
+
+  try {
+    const res = await fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        access_key: '6778fcf1-062e-45b1-953c-eafb48fe24be',
+        subject: 'Contrato Videobook firmado – ' + name,
+        from_name: name,
+        email: email,
+        to_email: emailDest,
+        replyto: email,
+        message: message
+      })
+    });
+    const data = await res.json();
+    if(data.success) {
+      showStatus('✓ PDF descargado y email enviado correctamente a ' + emailDest, 'ok');
+    } else {
+      showStatus('PDF descargado. Error al enviar email: ' + (data.message || 'inténtalo de nuevo.'), 'err');
+    }
+  } catch(e) {
+    showStatus('PDF descargado. No se pudo enviar el email (revisa conexión).', 'err');
+  }
 }
 </script>
 </body>
