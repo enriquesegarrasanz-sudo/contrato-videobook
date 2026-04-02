@@ -877,27 +877,20 @@ async function sendByEmail() {
       <p style="color:#6b6b80;font-size:12px">Documento generado automáticamente — Enrique Segarra Sanz · Videobook</p>
     </div>`;
 
-  const BREVO_KEY = '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';
+  const WORKER_URL = 'https://contrato-email-proxy.enriquesegarrasanz.workers.dev';
 
-  async function sendBrevo(toEmail, toName) {
-    const body = {
-      sender: { name: 'Enrique Segarra — Videobook', email: 'enriquesegarrasanz@gmail.com' },
-      to: [{ email: toEmail, name: toName || toEmail }],
-      subject: 'Contrato Videobook firmado — ' + name,
-      htmlContent: htmlBody,
-      attachment: [{ name: fileName, content: pdfBase64 }]
-    };
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+  async function sendViaWorker(toEmail, toName) {
+    const res = await fetch(WORKER_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'api-key': BREVO_KEY },
-      body: JSON.stringify(body)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toEmail, toName, clientName: name, nif, email, phone, dateStr, pdfBase64, fileName })
     });
     return res.ok;
   }
 
   try {
-    const recipients = [sendBrevo(emailPrestador, 'Enrique Segarra')];
-    if(emailCliente) recipients.push(sendBrevo(emailCliente, name));
+    const recipients = [sendViaWorker(emailPrestador, 'Enrique Segarra')];
+    if(emailCliente) recipients.push(sendViaWorker(emailCliente, name));
     const results = await Promise.all(recipients);
     const allOk = results.every(Boolean);
     if(allOk) {
