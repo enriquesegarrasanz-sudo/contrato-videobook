@@ -517,6 +517,35 @@
     .consent-row:last-child { border-bottom: none; }
     .consent-box { font-size: 17px; color: var(--gold); flex-shrink: 0; line-height: 1.5; }
 
+    /* Pack selector */
+    .pack-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .pack-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 14px 8px;
+      border: 2px solid var(--border);
+      border-radius: var(--r);
+      background: var(--surface);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .pack-option:hover { border-color: var(--gold-border); background: var(--gold-light); }
+    .pack-option.pack-active {
+      border-color: var(--gold);
+      background: var(--gold-light);
+      box-shadow: 0 0 0 1px var(--gold);
+    }
+    .pack-name { font-size: 13px; font-weight: 600; color: var(--primary); }
+    .pack-price { font-size: 18px; font-weight: 700; color: var(--gold-dark); font-family: 'EB Garamond', serif; }
+
     .sig-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -927,6 +956,91 @@
    DATA — BUILT-IN TEMPLATES
 ══════════════════════════════════════════════ */
 const BUILT_IN = {
+  'fotografia-v1': {
+    id: 'fotografia-v1',
+    name: 'Sesión Fotográfica',
+    description: 'Contrato para sesiones de fotografía con selección de pack',
+    category: 'Fotografía',
+    icon: '📸',
+    color: '#C4943A',
+    isBuiltIn: true,
+    createdAt: '2026-04-13',
+    hasPacks: true,
+    packs: {
+      basico: {
+        label: 'Pack Básico',
+        price: '150',
+        priceText: '150 € (ciento cincuenta euros)',
+        services: [
+          { name: 'Reunión previa', desc: 'Sesión para conocernos, revisar referencias visuales y definir la estética de la sesión.' },
+          { name: 'Sesión de 1 hora', desc: 'Sesión fotográfica de una hora de duración.' },
+          { name: '1 ubicación', desc: 'La sesión se realizará en una única localización acordada.' },
+          { name: '1–2 cambios de ropa', desc: 'Posibilidad de realizar hasta dos cambios de vestuario durante la sesión.' },
+          { name: '10 fotografías editadas', desc: 'Entrega de 10 fotografías seleccionadas y editadas profesionalmente.' },
+          { name: 'RAW opcionales', desc: 'Los archivos RAW (brutos) se entregan sin coste adicional si el cliente los solicita.' },
+          { name: 'Entrega: 4–7 días', desc: 'El material editado se entregará en un plazo de 4 a 7 días laborables.' },
+        ],
+        prices: [
+          { concept: 'Pack Básico (todo incluido)', amount: '150,00 €' },
+        ],
+      },
+      medio: {
+        label: 'Pack Medio',
+        price: '250',
+        priceText: '250 € (doscientos cincuenta euros)',
+        services: [
+          { name: 'Reunión previa', desc: 'Sesión para conocernos, revisar referencias visuales y definir la estética de la sesión.' },
+          { name: 'Sesión de 1h 30min', desc: 'Sesión fotográfica de hora y media de duración.' },
+          { name: 'Hasta 2 ubicaciones', desc: 'La sesión puede realizarse en hasta dos localizaciones acordadas.' },
+          { name: '2–4 cambios de ropa', desc: 'Posibilidad de realizar entre dos y cuatro cambios de vestuario durante la sesión.' },
+          { name: '20 fotografías editadas', desc: 'Entrega de 20 fotografías seleccionadas y editadas profesionalmente.' },
+          { name: 'RAW opcionales', desc: 'Los archivos RAW (brutos) se entregan sin coste adicional si el cliente los solicita.' },
+          { name: 'Entrega: 5–10 días', desc: 'El material editado se entregará en un plazo de 5 a 10 días laborables.' },
+        ],
+        prices: [
+          { concept: 'Pack Medio (todo incluido)', amount: '250,00 €' },
+        ],
+      },
+      completo: {
+        label: 'Pack Completo',
+        price: '380',
+        priceText: '380 € (trescientos ochenta euros)',
+        services: [
+          { name: 'Reunión profunda', desc: 'Sesión extendida para explorar en profundidad el perfil, referencias y objetivos de la sesión.' },
+          { name: 'Sesión de 2h 30min', desc: 'Sesión fotográfica de dos horas y media de duración.' },
+          { name: 'Hasta 3 ubicaciones', desc: 'La sesión puede realizarse en hasta tres localizaciones acordadas.' },
+          { name: 'Cambios ilimitados', desc: 'Sin límite de cambios de vestuario durante la sesión.' },
+          { name: '30 fotografías editadas', desc: 'Entrega de 30 fotografías seleccionadas y editadas profesionalmente.' },
+          { name: 'Edición avanzada + B/W', desc: 'Edición avanzada con opciones de blanco y negro artístico incluidas.' },
+          { name: 'RAW incluidos', desc: 'Los archivos RAW (brutos) se entregan siempre incluidos en este pack.' },
+          { name: 'Entrega: 7–14 días', desc: 'El material editado se entregará en un plazo de 7 a 14 días laborables.' },
+        ],
+        prices: [
+          { concept: 'Pack Completo (todo incluido)', amount: '380,00 €' },
+        ],
+      },
+    },
+    spec: {
+      mainTitle: 'CONTRATO DE PRESTACIÓN DE SERVICIOS FOTOGRÁFICOS',
+      subtitle: 'Sesión de Fotografía Profesional',
+      objectText: 'El prestador se compromete a realizar una sesión de fotografía profesional para el cliente, incluyendo todas las fases del proceso creativo y técnico que se detallan a continuación.',
+      priceIntro: '',
+      services: [],
+      extraClauses: [
+        { title: 'FILOSOFÍA DE TRABAJO', content: 'Antes de cualquier sesión se realiza una reunión previa sin límite de tiempo para conocernos, entender quién eres y qué buscas, revisar referencias visuales y definir la estética de la sesión.\n\nLa conexión previa es fundamental para crear imágenes honestas y con intención.' },
+        { title: 'ESPACIOS Y CREATIVIDAD', content: 'El prestador no dispone de estudio propio. El 80–90 % de su portfolio está realizado en espacios sencillos: casas, paredes, habitaciones luminosas, pasillos o exteriores cotidianos. La calidad no depende del lugar, sino de la creatividad, la luz y la sensibilidad.\n\nSi se desea un estudio profesional, el prestador puede gestionarlo; su alquiler se factura aparte.' },
+        { title: 'POLÍTICA DE RAW (VALOR DIFERENCIAL)', content: 'El prestador entrega los archivos RAW (brutos) sin coste adicional en cualquiera de los packs. Es una práctica poco común en el sector y refleja su compromiso con la transparencia y el respeto hacia el cliente.' },
+        { title: 'EXTRAS OPCIONALES', content: '• Alquiler de estudio: 20–40 €/h\n• Maquillaje profesional: 40–80 €\n• Fotografías adicionales: 8–12 € por imagen\n• Entrega exprés (24–48 h): +40 €\n\nLos extras se acuerdan previamente y se añaden al presupuesto base.' },
+        { title: 'DERECHOS DE IMAGEN Y PROPIEDAD INTELECTUAL', content: 'El cliente es titular de todos los derechos sobre las fotografías entregadas y podrá utilizarlas libremente para uso personal y profesional.\n\nEl prestador no utilizará las imágenes del cliente en redes sociales, portfolio, web ni ningún otro medio sin el consentimiento expreso del cliente, que se recoge en el apartado de firmas de este contrato.' },
+        { title: 'CONSENTIMIENTO PARA USO PROMOCIONAL', content: 'En caso de que el cliente autorice el uso de sus fotografías con fines promocionales del prestador (portfolio, redes sociales, web), dicho uso se limitará exclusivamente a la difusión del trabajo fotográfico y nunca con fines comerciales de terceros.\n\nEl cliente podrá revocar este consentimiento en cualquier momento comunicándolo por escrito al prestador.' },
+        { title: 'CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS', content: 'Los datos personales facilitados por el cliente serán tratados conforme al Reglamento (UE) 2016/679 (RGPD) y la normativa española de protección de datos (LOPDGDD).\n\nEl prestador se compromete a:\n• Utilizar los datos personales exclusivamente para la gestión y ejecución de este contrato.\n• No compartir, difundir ni ceder dichos datos a terceros bajo ningún concepto.\n• Eliminar los datos personales una vez concluida la prestación del servicio, salvo obligación legal de conservación.\n• Garantizar la seguridad y confidencialidad de toda la información recibida.' },
+      ],
+      prices: [],
+      paymentTerms: 'Se acuerda entre las partes. Se recomienda el pago del 50 % en el momento de la firma y el 50 % restante a la entrega del material final.',
+      includeAIConsent: false,
+      includeImageConsent: true,
+    }
+  },
   'videobook-v1': {
     id: 'videobook-v1',
     name: 'Videobook Portfolio',
@@ -1021,7 +1135,7 @@ function renderContract(spec, vals) {
     `<li><strong>${s.name}</strong>${s.desc || s.description ? ' — ' + (s.desc || s.description) : ''}</li>`
   ).join('');
 
-  const extraClauses = (spec.extraClauses || []).map(c => {
+  const extraClausesData = (spec.extraClauses || []).map(c => {
     const paragraphs = (c.content || '').split('\n').map(line => {
       if (!line.trim()) return '';
       if (line.startsWith('•')) return `<li>${line.slice(1).trim()}</li>`;
@@ -1035,8 +1149,8 @@ function renderContract(spec, vals) {
       else { if (inList) { html += '</ul>'; inList = false; } html += p; }
     }
     if (inList) html += '</ul>';
-    return `<div class="doc-section"><div class="doc-section-title">${n++}. ${c.title}</div>${html}</div>`;
-  }).join('');
+    return { title: c.title, html };
+  });
 
   const priceRows = (spec.prices || []).map((p, i) =>
     `<tr${i===0?' style="background:#FAFAF5;font-weight:600"':''}>
@@ -1049,6 +1163,16 @@ function renderContract(spec, vals) {
     <div class="consent-row">
       <span class="consent-box">☐</span>
       <span>El cliente <strong>CONSIENTE</strong> la grabación de la charla previa con los fines descritos en este contrato.</span>
+    </div>` : '';
+
+  const imageConsentRow = spec.includeImageConsent ? `
+    <div class="consent-row">
+      <span class="consent-box">☐</span>
+      <span>El cliente <strong>AUTORIZA</strong> al prestador a utilizar las fotografías resultantes de esta sesión con fines promocionales (portfolio, redes sociales, web) según lo descrito en este contrato.</span>
+    </div>
+    <div class="consent-row">
+      <span class="consent-box">☐</span>
+      <span>El cliente <strong>NO AUTORIZA</strong> el uso de sus fotografías con fines promocionales. Las imágenes serán de uso exclusivo del cliente.</span>
     </div>` : '';
 
   const city = v(vals, 'city', 'Madrid');
@@ -1091,7 +1215,7 @@ function renderContract(spec, vals) {
       <ul>${services}</ul>
     </div>
 
-    ${extraClauses}
+    ${extraClausesData.map(c => `<div class="doc-section"><div class="doc-section-title">${n++}. ${c.title}</div>${c.html}</div>`).join('')}
 
     <div class="doc-section">
       <div class="doc-section-title">${n++}. PRECIO Y FORMA DE PAGO</div>
@@ -1103,6 +1227,7 @@ function renderContract(spec, vals) {
       <div class="doc-section-title">${n++}. FIRMAS Y CONSENTIMIENTOS</div>
       <div class="consent-block">
         ${aiRow}
+        ${imageConsentRow}
         <div class="consent-row">
           <span class="consent-box">☐</span>
           <span>El cliente ha leído y <strong>acepta</strong> los términos y condiciones del presente contrato.</span>
@@ -1133,7 +1258,11 @@ function renderContract(spec, vals) {
 function makeUrl(tplId, vals) {
   const tpl = getTpl(tplId); if (!tpl) return null;
   let payload;
-  if (tpl.isBuiltIn) {
+  if (tpl.isBuiltIn && tpl.hasPacks) {
+    const resolved = getResolvedSpec(tpl, vals);
+    const cleanVals = { ...vals }; delete cleanVals._pack;
+    payload = JSON.stringify({ spec: resolved, name: tpl.name, v: cleanVals });
+  } else if (tpl.isBuiltIn) {
     payload = JSON.stringify({ t: tplId, v: vals });
   } else {
     payload = JSON.stringify({ spec: tpl.spec, name: tpl.name, v: vals });
@@ -1352,6 +1481,46 @@ function field(id, label, type, ph) {
   </div>`;
 }
 
+function renderPackSelector(tpl) {
+  const sel = S.fillVals._pack || 'basico';
+  const packs = tpl.packs;
+  let html = '<div class="field-group-label">Pack de sesión</div><div class="pack-selector">';
+  for (const [key, pk] of Object.entries(packs)) {
+    const active = sel === key ? ' pack-active' : '';
+    html += `<button class="pack-option${active}" onclick="selectPack('${key}')">
+      <span class="pack-name">${pk.label}</span>
+      <span class="pack-price">${pk.price} &euro;</span>
+    </button>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function selectPack(key) {
+  S.fillVals._pack = key;
+  render();
+}
+
+function getResolvedSpec(tpl, vals) {
+  const spec = { ...tpl.spec };
+  if (tpl.hasPacks && tpl.packs) {
+    const packKey = vals._pack || 'basico';
+    const pack = tpl.packs[packKey];
+    if (pack) {
+      spec.services = pack.services;
+      spec.prices = [
+        ...pack.prices,
+        { concept: 'Alquiler de estudio (si aplica)', amount: '20–40 €/h — a acordar' },
+        { concept: 'Maquillaje profesional (si aplica)', amount: '40–80 € — a acordar' },
+        { concept: 'Fotografías adicionales', amount: '8–12 € / imagen' },
+        { concept: 'Entrega exprés 24–48 h (si aplica)', amount: '+40,00 €' },
+      ];
+      spec.priceIntro = `El precio de <strong>${pack.priceText}</strong> cubre íntegramente los siguientes servicios del <strong>${pack.label}</strong>:`;
+    }
+  }
+  return spec;
+}
+
 function renderFill(root, hdr) {
   hdr.innerHTML = '';
   const tpl = getTpl(S.selId);
@@ -1374,6 +1543,7 @@ function renderFill(root, hdr) {
               <div class="panel-sub">Los campos vacíos quedarán como líneas en blanco</div>
             </div>
             <div class="panel-body">
+              ${tpl.hasPacks ? renderPackSelector(tpl) : ''}
               <div class="field-group-label">General</div>
               ${field('city','Ciudad','text','Madrid')}
               ${field('date','Fecha del contrato','date','')}
@@ -1406,7 +1576,7 @@ function renderFill(root, hdr) {
             <span class="preview-bar-hint">Actualización en tiempo real</span>
           </div>
           <div class="preview-scroll" id="previewBody">
-            ${renderContract(tpl.spec, S.fillVals)}
+            ${renderContract(getResolvedSpec(tpl, S.fillVals), S.fillVals)}
           </div>
         </div>
       </div>
@@ -1416,7 +1586,7 @@ function renderFill(root, hdr) {
 function setFill(id, val) {
   S.fillVals[id] = val;
   const tpl = getTpl(S.selId);
-  if (tpl) document.getElementById('previewBody').innerHTML = renderContract(tpl.spec, S.fillVals);
+  if (tpl) document.getElementById('previewBody').innerHTML = renderContract(getResolvedSpec(tpl, S.fillVals), S.fillVals);
 }
 
 function doShare() {
@@ -1427,7 +1597,7 @@ function doShare() {
 
 function doPrintFill() {
   const tpl = getTpl(S.selId); if (!tpl) return;
-  doPrint(tpl.spec, S.fillVals);
+  doPrint(getResolvedSpec(tpl, S.fillVals), S.fillVals);
 }
 
 /* ══════════════════════════════════════════════
