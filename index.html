@@ -561,10 +561,44 @@
       color: var(--gold);
       margin-bottom: 34px;
     }
-    .sig-line { border-bottom: 1px solid #1A1A1A; margin-bottom: 6px; }
+    .sig-line { border-bottom: 1px solid #1A1A1A; margin-bottom: 6px; height: 40px; }
     .sig-name { font-size: 13px; color: #555; margin-bottom: 2px; }
     .sig-sublabel { font-family: 'Inter', sans-serif; font-size: 9px; color: #AAA; text-transform: uppercase; letter-spacing: 0.07em; }
     .sig-date { font-size: 13px; color: #666; margin-top: 12px; }
+    .sig-img { max-width: 100%; max-height: 70px; display: block; margin-bottom: 6px; }
+
+    /* Signature canvas pad */
+    .sig-canvas-wrap { position: relative; margin: 4px 0 6px; }
+    .sig-canvas {
+      display: block; width: 100%; height: 80px;
+      border: 1.5px dashed #ccc; border-radius: 6px;
+      background: #fafaf7; cursor: crosshair; touch-action: none;
+    }
+    .sig-canvas.has-sig { border-color: var(--gold); border-style: solid; background: #fff; }
+    .sig-clear-btn {
+      position: absolute; top: 5px; right: 5px;
+      background: rgba(255,255,255,0.9); border: 1px solid #ddd;
+      border-radius: 4px; font-size: 11px; color: #888;
+      cursor: pointer; padding: 2px 7px; font-family: inherit;
+    }
+    .sig-clear-btn:hover { background: #fff; color: var(--danger); border-color: var(--danger); }
+
+    /* Interactive checkboxes */
+    .consent-check {
+      width: 17px; height: 17px; accent-color: var(--gold);
+      cursor: pointer; flex-shrink: 0; margin-top: 3px;
+    }
+    .consent-label { cursor: pointer; }
+
+    /* Sign action bar (client view) */
+    .sign-action-bar {
+      max-width: 680px; margin: 28px auto 48px;
+      padding: 24px 28px;
+      background: var(--surface); border-radius: var(--r-lg);
+      box-shadow: var(--shadow-md); border: 1px solid var(--border);
+    }
+    .sign-hint { font-size: 14px; color: var(--secondary); margin-bottom: 16px; line-height: 1.6; }
+    .sign-status { font-size: 12.5px; color: var(--tertiary); margin-top: 10px; min-height: 18px; text-align: center; }
 
     /* ═══════════════════════════════════════
        MODAL
@@ -1128,7 +1162,7 @@ function v(vals, id, fb) {
   const x = vals[id]; return (x && x.trim()) ? x.trim() : (fb !== undefined ? fb : blank());
 }
 
-function renderContract(spec, vals) {
+function renderContract(spec, vals, interactive) {
   let n = 1;
 
   const services = (spec.services || []).map(s =>
@@ -1159,21 +1193,29 @@ function renderContract(spec, vals) {
     </tr>`
   ).join('');
 
-  const aiRow = spec.includeAIConsent ? `
-    <div class="consent-row">
-      <span class="consent-box">☐</span>
-      <span>El cliente <strong>CONSIENTE</strong> la grabación de la charla previa con los fines descritos en este contrato.</span>
-    </div>` : '';
+  // Genera una fila de consentimiento: interactiva (checkbox) o estática (☐/☑)
+  let _chkIdx = 0;
+  function cRow(id, html) {
+    if (interactive) {
+      return `<div class="consent-row">
+        <input type="checkbox" class="consent-check" id="${id}" onchange="updateSignBtn()">
+        <label for="${id}" class="consent-label">${html}</label>
+      </div>`;
+    }
+    const checked = vals._checked && vals._checked[id];
+    return `<div class="consent-row">
+      <span class="consent-box">${checked ? '☑' : '☐'}</span>
+      <span>${html}</span>
+    </div>`;
+  }
+
+  const aiRow = spec.includeAIConsent
+    ? cRow('chk-ai', 'El cliente <strong>CONSIENTE</strong> la grabación de la charla previa con los fines descritos en este contrato.')
+    : '';
 
   const imageConsentRow = spec.includeImageConsent ? `
-    <div class="consent-row">
-      <span class="consent-box">☐</span>
-      <span>El cliente <strong>AUTORIZA</strong> al prestador a utilizar las fotografías resultantes de esta sesión con fines promocionales (portfolio, redes sociales, web) según lo descrito en este contrato.</span>
-    </div>
-    <div class="consent-row">
-      <span class="consent-box">☐</span>
-      <span>El cliente <strong>NO AUTORIZA</strong> el uso de sus fotografías con fines promocionales. Las imágenes serán de uso exclusivo del cliente.</span>
-    </div>` : '';
+    ${cRow('chk-img-yes', 'El cliente <strong>AUTORIZA</strong> al prestador a utilizar las fotografías resultantes de esta sesión con fines promocionales (portfolio, redes sociales, web) según lo descrito en este contrato.')}
+    ${cRow('chk-img-no', 'El cliente <strong>NO AUTORIZA</strong> el uso de sus fotografías con fines promocionales. Las imágenes serán de uso exclusivo del cliente.')}` : '';
 
   const city = v(vals, 'city', 'Madrid');
   const dateStr = vals.date ? fmtDate(vals.date) : blank('fecha');
@@ -1228,10 +1270,7 @@ function renderContract(spec, vals) {
       <div class="consent-block">
         ${aiRow}
         ${imageConsentRow}
-        <div class="consent-row">
-          <span class="consent-box">☐</span>
-          <span>El cliente ha leído y <strong>acepta</strong> los términos y condiciones del presente contrato.</span>
-        </div>
+        ${cRow('chk-terms','El cliente ha leído y <strong>acepta</strong> los términos y condiciones del presente contrato.')}
       </div>
       <div class="sig-grid">
         <div class="sig-block">
@@ -1242,12 +1281,22 @@ function renderContract(spec, vals) {
         </div>
         <div class="sig-block">
           <div class="sig-role">Cliente</div>
-          <div class="sig-line"></div>
+          ${interactive
+            ? `<div class="sig-canvas-wrap">
+                <canvas id="clientSigCanvas" class="sig-canvas" width="300" height="80"></canvas>
+                <button type="button" class="sig-clear-btn" onclick="clearClientSig()">Borrar</button>
+               </div>`
+            : vals.client_sig
+              ? `<img src="${vals.client_sig}" class="sig-img" alt="Firma del cliente">`
+              : `<div class="sig-line"></div>`
+          }
           <div class="sig-name">${v(vals,'client_name','')}</div>
           <div class="sig-sublabel">Nombre y firma</div>
         </div>
       </div>
-      <div class="sig-date">Fecha de firma: _______________________________</div>
+      <div class="sig-date">Fecha de firma: ${vals.sign_date
+        ? new Date(vals.sign_date).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'})
+        : '_______________________________'}</div>
     </div>
   </div>`;
 }
@@ -1551,6 +1600,7 @@ function renderFill(root, hdr) {
               <div class="field-group-label">Prestador (tú)</div>
               ${field('provider_name','Nombre completo','text','Tu nombre')}
               ${field('provider_nif','NIF / CIF','text','00000000X')}
+              ${field('provider_email','Tu correo electrónico','email','tu@email.com')}
 
               <div class="field-group-label">Cliente</div>
               ${field('client_name','Nombre completo','text','Nombre del cliente')}
@@ -1610,17 +1660,135 @@ function renderContractPage(root, hdr) {
 
   root.innerHTML = `
     <div class="contract-full-page">
-      <div class="contract-sheet">
-        ${renderContract(d.spec, d.values || {})}
+      <div class="contract-sheet" id="contractSheet">
+        ${renderContract(d.spec, d.values || {}, true)}
       </div>
-      <div class="contract-sheet-actions">
-        <button class="btn btn-o" onclick="window.history.back()">← Volver</button>
-        <button class="btn" onclick="doPrint(S.contractData.spec, S.contractData.values || {})">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          Descargar / Imprimir PDF
+
+      <div class="sign-action-bar">
+        <p class="sign-hint">
+          <strong>¿Cómo firmar?</strong><br>
+          1. Lee el contrato completo.<br>
+          2. Marca las casillas de consentimiento que correspondan.<br>
+          3. Dibuja tu firma en el recuadro de <em>Cliente</em>.<br>
+          4. Pulsa <strong>Firmar y confirmar</strong> — se generará el PDF y se abrirá el correo para ambas partes.
+        </p>
+        <button class="btn btn-gold btn-lg" id="signBtn" onclick="doClientSign()" disabled style="width:100%;margin-bottom:10px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Firmar y confirmar contrato
         </button>
+        <p class="sign-status" id="signStatus">Marca al menos la casilla de aceptación y dibuja tu firma</p>
       </div>
     </div>`;
+
+  initClientSigCanvas();
+}
+
+/* ══════════════════════════════════════════════
+   SIGNATURE PAD & CLIENT SIGNING
+══════════════════════════════════════════════ */
+function initClientSigCanvas() {
+  const canvas = document.getElementById('clientSigCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1A1A1A';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  let drawing = false;
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return {
+      x: (t.clientX - r.left) * (canvas.width / r.width),
+      y: (t.clientY - r.top) * (canvas.height / r.height)
+    };
+  }
+  canvas.addEventListener('mousedown', e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+  canvas.addEventListener('mousemove', e => {
+    if (!drawing) return;
+    const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+    canvas.classList.add('has-sig'); updateSignBtn();
+  });
+  canvas.addEventListener('mouseup',    () => { drawing = false; });
+  canvas.addEventListener('mouseleave', () => { drawing = false; });
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault(); drawing = true;
+    const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  }, { passive: false });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault(); if (!drawing) return;
+    const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+    canvas.classList.add('has-sig'); updateSignBtn();
+  }, { passive: false });
+  canvas.addEventListener('touchend', () => { drawing = false; });
+}
+
+function clearClientSig() {
+  const canvas = document.getElementById('clientSigCanvas');
+  if (!canvas) return;
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  canvas.classList.remove('has-sig');
+  updateSignBtn();
+}
+
+function isCanvasBlank(canvas) {
+  return !canvas.getContext('2d')
+    .getImageData(0, 0, canvas.width, canvas.height).data
+    .some(v => v !== 0);
+}
+
+function updateSignBtn() {
+  const canvas  = document.getElementById('clientSigCanvas');
+  const terms   = document.getElementById('chk-terms');
+  const btn     = document.getElementById('signBtn');
+  const status  = document.getElementById('signStatus');
+  if (!btn) return;
+  const hasSig   = canvas && !isCanvasBlank(canvas);
+  const hasTerms = terms && terms.checked;
+  btn.disabled   = !(hasSig && hasTerms);
+  if (status) {
+    if (!hasTerms && !hasSig) status.textContent = 'Marca al menos la casilla de aceptación y dibuja tu firma';
+    else if (!hasTerms)       status.textContent = 'Marca la casilla "El cliente ha leído y acepta los términos"';
+    else if (!hasSig)         status.textContent = 'Dibuja tu firma en el recuadro para continuar';
+    else                      status.textContent = '✓ Todo listo — puedes firmar el contrato';
+  }
+}
+
+function doClientSign() {
+  const canvas = document.getElementById('clientSigCanvas');
+  const d = S.contractData;
+  if (!d || !canvas) return;
+
+  // Recopilar estado de checkboxes
+  const checked = {};
+  document.querySelectorAll('.consent-check').forEach(c => { checked[c.id] = c.checked; });
+
+  // Capturar firma como imagen
+  const clientSig = canvas.toDataURL('image/jpeg', 0.85);
+
+  // Construir valores finales con firma y fecha
+  const finalVals = {
+    ...d.values,
+    client_sig: clientSig,
+    _checked: checked,
+    sign_date: new Date().toISOString(),
+  };
+
+  // Generar PDF
+  doPrint(d.spec, finalVals);
+
+  // Abrir correo a ambas partes
+  const to = [d.values.provider_email, d.values.client_email].filter(Boolean).join(',');
+  const subject = encodeURIComponent(`Contrato firmado — ${d.name || 'Servicios'}`);
+  const clientName = d.values.client_name || 'el cliente';
+  const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  const body = encodeURIComponent(
+    `Hola,\n\n${clientName} ha firmado el contrato de servicios el ${dateStr}.\n\nEncontrarás adjunto el PDF del contrato firmado.\n\nUn saludo.`
+  );
+  if (to) setTimeout(() => { window.location.href = `mailto:${to}?subject=${subject}&body=${body}`; }, 600);
+
+  toast('¡Contrato firmado! Abriendo PDF y correo…', 'ok');
 }
 
 /* ══════════════════════════════════════════════
