@@ -1863,20 +1863,26 @@ function doClientSign() {
     sign_date: new Date().toISOString(),
   };
 
+  // Abrir correo PRIMERO — dentro del contexto de clic del usuario
+  const to = [d.values.provider_email, d.values.client_email].filter(Boolean).join(',');
+  if (to) {
+    const subject = encodeURIComponent(`Contrato firmado — ${d.name || 'Servicios'}`);
+    const clientName = d.values.client_name || 'el cliente';
+    const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    const body = encodeURIComponent(
+      `Hola,\n\n${clientName} ha firmado el contrato de servicios el ${dateStr}.\n\nSe adjunta el PDF del contrato firmado.\n\nUn saludo.`
+    );
+    const a = document.createElement('a');
+    a.href = `mailto:${to}?subject=${subject}&body=${body}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
   // Generar PDF
   doPrint(d.spec, finalVals);
 
-  // Abrir correo a ambas partes
-  const to = [d.values.provider_email, d.values.client_email].filter(Boolean).join(',');
-  const subject = encodeURIComponent(`Contrato firmado — ${d.name || 'Servicios'}`);
-  const clientName = d.values.client_name || 'el cliente';
-  const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
-  const body = encodeURIComponent(
-    `Hola,\n\n${clientName} ha firmado el contrato de servicios el ${dateStr}.\n\nEncontrarás adjunto el PDF del contrato firmado.\n\nUn saludo.`
-  );
-  if (to) setTimeout(() => { window.location.href = `mailto:${to}?subject=${subject}&body=${body}`; }, 600);
-
-  toast('¡Contrato firmado! Abriendo PDF y correo…', 'ok');
+  toast('¡Contrato firmado! Se abre tu gestor de correo y el PDF.', 'ok');
 }
 
 /* ══════════════════════════════════════════════
