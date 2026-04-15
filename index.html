@@ -583,6 +583,22 @@
     }
     .sig-clear-btn:hover { background: #fff; color: var(--danger); border-color: var(--danger); }
 
+    /* Campos editables inline en el contrato (cliente rellena sus datos) */
+    .contract-inline-input {
+      border: none; border-bottom: 2px solid var(--gold);
+      background: rgba(196,148,58,0.06); padding: 3px 6px;
+      font-size: 14px; font-family: 'EB Garamond', serif;
+      color: var(--primary); border-radius: 3px 3px 0 0;
+      width: 100%; outline: none; display: block; margin: 2px 0 6px;
+    }
+    .contract-inline-input:focus { background: rgba(196,148,58,0.13); border-bottom-color: var(--gold-dark); }
+    .contract-inline-input::placeholder { color: #bbb; font-style: italic; font-size: 13px; }
+
+    /* Previsualización firma prestador en formulario */
+    .sig-fill-preview { display: flex; flex-direction: column; gap: 8px; }
+    .sig-fill-preview img { max-height: 65px; border: 1px solid var(--border); border-radius: 6px; padding: 6px; background: #fff; }
+    .sig-fill-hint { font-size: 11.5px; color: var(--tertiary); margin-top: 3px; }
+
     /* Interactive checkboxes */
     .consent-check {
       width: 17px; height: 17px; accent-color: var(--gold);
@@ -1237,11 +1253,17 @@ function renderContract(spec, vals, interactive) {
         </div>
         <div class="party-box">
           <div class="party-label-role">Cliente</div>
-          <p>${v(vals,'client_name')}</p>
+          ${interactive && !(vals.client_name && vals.client_name.trim())
+            ? `<input class="contract-inline-input" type="text" placeholder="Tu nombre completo" oninput="setContractField('client_name',this.value)">`
+            : `<p>${v(vals,'client_name')}</p>`}
           <p class="party-field-label">NIF</p>
-          <p>${v(vals,'client_nif')}</p>
+          ${interactive && !(vals.client_nif && vals.client_nif.trim())
+            ? `<input class="contract-inline-input" type="text" placeholder="00000000X" oninput="setContractField('client_nif',this.value)">`
+            : `<p>${v(vals,'client_nif')}</p>`}
           <p class="party-field-label">Correo</p>
-          <p>${v(vals,'client_email')}</p>
+          ${interactive && !(vals.client_email && vals.client_email.trim())
+            ? `<input class="contract-inline-input" type="email" placeholder="tu@correo.com" oninput="setContractField('client_email',this.value)">`
+            : `<p>${v(vals,'client_email')}</p>`}
         </div>
       </div>
     </div>
@@ -1275,7 +1297,9 @@ function renderContract(spec, vals, interactive) {
       <div class="sig-grid">
         <div class="sig-block">
           <div class="sig-role">Prestador de servicios</div>
-          <div class="sig-line"></div>
+          ${vals.provider_sig
+            ? `<img src="${vals.provider_sig}" class="sig-img" alt="Firma del prestador">`
+            : `<div class="sig-line"></div>`}
           <div class="sig-name">${v(vals,'provider_name','')}</div>
           <div class="sig-sublabel">Nombre y firma</div>
         </div>
@@ -1601,6 +1625,20 @@ function renderFill(root, hdr) {
               ${field('provider_name','Nombre completo','text','Tu nombre')}
               ${field('provider_nif','NIF / CIF','text','00000000X')}
               ${field('provider_email','Tu correo electrónico','email','tu@email.com')}
+              <div class="form-group">
+                <label class="form-label">Tu firma</label>
+                ${S.fillVals.provider_sig
+                  ? `<div class="sig-fill-preview">
+                      <img src="${S.fillVals.provider_sig}" alt="Tu firma">
+                      <button class="btn btn-outline btn-sm" onclick="clearProviderSig()">✕ Borrar firma</button>
+                     </div>`
+                  : `<div class="sig-canvas-wrap">
+                      <canvas id="providerSigCanvas" class="sig-canvas" width="300" height="80"></canvas>
+                      <button type="button" class="sig-clear-btn" onclick="clearProviderSigCanvas()">Borrar</button>
+                     </div>
+                     <p class="sig-fill-hint">Dibuja tu firma — se guardará en el contrato</p>`
+                }
+              </div>
 
               <div class="field-group-label">Cliente</div>
               ${field('client_name','Nombre completo','text','Nombre del cliente')}
@@ -1631,6 +1669,7 @@ function renderFill(root, hdr) {
         </div>
       </div>
     </div>`;
+  initProviderSigCanvas();
 }
 
 function setFill(id, val) {
@@ -1686,6 +1725,55 @@ function renderContractPage(root, hdr) {
 /* ══════════════════════════════════════════════
    SIGNATURE PAD & CLIENT SIGNING
 ══════════════════════════════════════════════ */
+/* — Firma del prestador (fill view) — */
+function initProviderSigCanvas() {
+  const canvas = document.getElementById('providerSigCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 2;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  let drawing = false;
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
+  }
+  function saveSig() {
+    S.fillVals.provider_sig = canvas.toDataURL('image/jpeg', 0.85);
+    const tpl = getTpl(S.selId);
+    if (tpl) document.getElementById('previewBody').innerHTML = renderContract(getResolvedSpec(tpl, S.fillVals), S.fillVals);
+  }
+  canvas.addEventListener('mousedown', e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+  canvas.addEventListener('mousemove', e => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); canvas.classList.add('has-sig'); });
+  canvas.addEventListener('mouseup',    () => { if (drawing) { drawing = false; saveSig(); } });
+  canvas.addEventListener('mouseleave', () => { if (drawing) { drawing = false; saveSig(); } });
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); canvas.classList.add('has-sig'); }, { passive: false });
+  canvas.addEventListener('touchend',   () => { if (drawing) { drawing = false; saveSig(); } });
+}
+
+function clearProviderSigCanvas() {
+  const canvas = document.getElementById('providerSigCanvas');
+  if (!canvas) return;
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  canvas.classList.remove('has-sig');
+  S.fillVals.provider_sig = null;
+  const tpl = getTpl(S.selId);
+  if (tpl) document.getElementById('previewBody').innerHTML = renderContract(getResolvedSpec(tpl, S.fillVals), S.fillVals);
+}
+
+function clearProviderSig() {
+  S.fillVals.provider_sig = null;
+  render();
+}
+
+/* — Campos editables del cliente en contrato compartido — */
+function setContractField(key, val) {
+  if (S.contractData) S.contractData.values[key] = val;
+  updateSignBtn();
+}
+
 function initClientSigCanvas() {
   const canvas = document.getElementById('clientSigCanvas');
   if (!canvas) return;
