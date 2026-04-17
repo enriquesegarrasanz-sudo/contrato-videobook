@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mis Contratos</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://fonts.googleapis.com;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <style>
@@ -1158,8 +1159,8 @@ function freshWizard() {
    STORAGE
 ══════════════════════════════════════════════ */
 function getCustom() { try { return JSON.parse(localStorage.getItem('contracts_v2') || '{}'); } catch { return {}; } }
-function saveCustom(tpl) { const a = getCustom(); a[tpl.id] = tpl; localStorage.setItem('contracts_v2', JSON.stringify(a)); }
-function deleteCustom(id) { const a = getCustom(); delete a[id]; localStorage.setItem('contracts_v2', JSON.stringify(a)); }
+function saveCustom(tpl) { try { const a = getCustom(); a[tpl.id] = tpl; localStorage.setItem('contracts_v2', JSON.stringify(a)); } catch { toast('No se pueden guardar datos en este modo de navegación'); } }
+function deleteCustom(id) { try { const a = getCustom(); delete a[id]; localStorage.setItem('contracts_v2', JSON.stringify(a)); } catch {} }
 function getAllTpl() { return { ...BUILT_IN, ...getCustom() }; }
 function getTpl(id) { return getAllTpl()[id] || null; }
 
@@ -1168,6 +1169,16 @@ function getTpl(id) { return getAllTpl()[id] || null; }
 ══════════════════════════════════════════════ */
 function blank(t) { return `<span style="border-bottom:1px dashed #AAA;display:inline-block;min-width:180px;color:#BBB;font-style:italic;font-size:13px">${t||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span>`; }
 
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function fmtDate(s) {
   if (!s) return blank('fecha');
   const d = new Date(s + 'T12:00:00');
@@ -1175,7 +1186,7 @@ function fmtDate(s) {
 }
 
 function v(vals, id, fb) {
-  const x = vals[id]; return (x && x.trim()) ? x.trim() : (fb !== undefined ? fb : blank());
+  const x = vals[id]; return (x && x.trim()) ? esc(x.trim()) : (fb !== undefined ? esc(String(fb)) : blank());
 }
 
 function renderContract(spec, vals, interactive) {
@@ -1469,6 +1480,7 @@ function render() {
   if (c && S.view === 'home') {
     const data = decodeUrl(c);
     if (data) { S.view = 'contract'; S.contractData = data; }
+    else { S.view = 'badlink'; }
   }
 
   switch (S.view) {
@@ -1476,7 +1488,19 @@ function render() {
     case 'fill':     renderFill(root, hdr); break;
     case 'create':   renderCreate(root, hdr); break;
     case 'contract': renderContractPage(root, hdr); break;
+    case 'badlink':  renderBadLink(root, hdr); break;
   }
+}
+
+function renderBadLink(root, hdr) {
+  hdr.innerHTML = '';
+  root.innerHTML = `
+    <div class="page" style="max-width:560px;text-align:center;padding-top:80px">
+      <div style="font-size:48px;margin-bottom:20px">⚠️</div>
+      <div class="page-title">Enlace no válido</div>
+      <p class="page-sub" style="margin-bottom:28px">Este enlace de contrato no es válido o ha expirado. Pide al prestador que te envíe un enlace nuevo.</p>
+      <button class="btn btn-gold" onclick="S.view='home';render()">Ir al inicio</button>
+    </div>`;
 }
 
 /* ══════════════════════════════════════════════
@@ -1495,13 +1519,13 @@ function renderHome(root, hdr) {
       <div class="card-stripe" style="background:${t.color || '#C4943A'}"></div>
       <div class="card-body">
         <div class="card-icon">${t.icon || '📄'}</div>
-        <div class="card-name">${t.name}</div>
-        <div class="card-desc">${t.description || ''}</div>
+        <div class="card-name">${esc(t.name)}</div>
+        <div class="card-desc">${esc(t.description || '')}</div>
       </div>
       <div class="card-footer">
         <span class="card-badge ${t.isBuiltIn ? 'badge-base' : 'badge-custom'}">${t.isBuiltIn ? 'Base' : 'Personalizada'}</span>
         <div class="card-actions">
-          ${!t.isBuiltIn ? `<button class="btn btn-danger-ghost btn-sm" onclick="event.stopPropagation();doDelete('${t.id}','${t.name}')">Eliminar</button>` : ''}
+          ${!t.isBuiltIn ? `<button class="btn btn-danger-ghost btn-sm" onclick="event.stopPropagation();doDelete('${t.id}')">Eliminar</button>` : ''}
           <button class="btn btn-gold btn-sm" onclick="startFill('${t.id}')">Usar →</button>
         </div>
       </div>
@@ -1537,8 +1561,10 @@ function startCreate() {
   navigate('create');
 }
 
-function doDelete(id, name) {
-  if (!confirm(`¿Eliminar la plantilla "${name}"?`)) return;
+function doDelete(id) {
+  const tpl = getTpl(id);
+  if (!tpl) return;
+  if (!confirm(`¿Eliminar la plantilla "${tpl.name}"?`)) return;
   deleteCustom(id);
   toast('Plantilla eliminada');
   render();
@@ -1607,7 +1633,7 @@ function renderFill(root, hdr) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Plantillas
       </button>
-      <div class="page-title">${tpl.name}</div>
+      <div class="page-title">${esc(tpl.name)}</div>
       <p class="page-sub">Rellena los datos del cliente para generar el contrato personalizado.</p>
 
       <div class="fill-layout">
@@ -1624,7 +1650,7 @@ function renderFill(root, hdr) {
               ${field('date','Fecha del contrato','date','')}
 
               <div class="field-group-label">Prestador (tú)</div>
-              ${field('provider_name','Nombre completo','text','Tu nombre')}
+              ${field('provider_name','Nombre completo <span class="req">*</span>','text','Tu nombre')}
               ${field('provider_nif','NIF / CIF','text','00000000X')}
               ${field('provider_email','Tu correo electrónico','email','tu@email.com')}
               <div class="form-group">
@@ -1681,6 +1707,10 @@ function setFill(id, val) {
 }
 
 function doShare() {
+  if (!S.fillVals.provider_name || !S.fillVals.provider_name.trim()) {
+    toast('Rellena al menos tu nombre como prestador');
+    return;
+  }
   const url = makeUrl(S.selId, S.fillVals);
   if (!url) { toast('Error al generar el enlace'); return; }
   openModal(url);
@@ -1739,32 +1769,40 @@ function canvasToJpeg(canvas) {
   return tmp.toDataURL('image/jpeg', 0.92);
 }
 
-/* — Firma del prestador (fill view) — */
-function initProviderSigCanvas() {
-  const canvas = document.getElementById('providerSigCanvas');
+/* — Canvas de firma genérico — */
+function initSigCanvas(canvasId, opts) {
+  const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 2;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   let drawing = false;
+  const onDraw = opts && opts.onDraw;
+  const onEnd  = opts && opts.onEnd;
 
   function getPos(e) {
     const r = canvas.getBoundingClientRect();
     const t = e.touches ? e.touches[0] : e;
     return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
   }
-  function saveSig() {
-    S.fillVals.provider_sig = canvasToJpeg(canvas);
-    const tpl = getTpl(S.selId);
-    if (tpl) document.getElementById('previewBody').innerHTML = renderContract(getResolvedSpec(tpl, S.fillVals), S.fillVals);
-  }
   canvas.addEventListener('mousedown', e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
-  canvas.addEventListener('mousemove', e => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); canvas.classList.add('has-sig'); });
-  canvas.addEventListener('mouseup',    () => { if (drawing) { drawing = false; saveSig(); } });
-  canvas.addEventListener('mouseleave', () => { if (drawing) { drawing = false; saveSig(); } });
+  canvas.addEventListener('mousemove', e => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); canvas.classList.add('has-sig'); if (onDraw) onDraw(); });
+  canvas.addEventListener('mouseup',    () => { if (drawing) { drawing = false; if (onEnd) onEnd(canvas); } });
+  canvas.addEventListener('mouseleave', () => { if (drawing) { drawing = false; if (onEnd) onEnd(canvas); } });
   canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
-  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); canvas.classList.add('has-sig'); }, { passive: false });
-  canvas.addEventListener('touchend',   () => { if (drawing) { drawing = false; saveSig(); } });
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); canvas.classList.add('has-sig'); if (onDraw) onDraw(); }, { passive: false });
+  canvas.addEventListener('touchend',   () => { if (drawing) { drawing = false; if (onEnd) onEnd(canvas); } });
+}
+
+/* — Firma del prestador (fill view) — */
+function initProviderSigCanvas() {
+  initSigCanvas('providerSigCanvas', {
+    onEnd: (canvas) => {
+      S.fillVals.provider_sig = canvasToJpeg(canvas);
+      const tpl = getTpl(S.selId);
+      if (tpl) document.getElementById('previewBody').innerHTML = renderContract(getResolvedSpec(tpl, S.fillVals), S.fillVals);
+    }
+  });
 }
 
 function clearProviderSigCanvas() {
@@ -1788,25 +1826,9 @@ function setContractField(key, val) {
   updateSignBtn();
 }
 
+/* — Firma del prestador en contrato compartido — */
 function initProviderContractCanvas() {
-  const canvas = document.getElementById('providerSigContractCanvas');
-  if (!canvas) return; // ya tiene firma previa como imagen
-  const ctx = canvas.getContext('2d');
-  ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 2;
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  let drawing = false;
-  function getPos(e) {
-    const r = canvas.getBoundingClientRect();
-    const t = e.touches ? e.touches[0] : e;
-    return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
-  }
-  canvas.addEventListener('mousedown', e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
-  canvas.addEventListener('mousemove', e => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); canvas.classList.add('has-sig'); });
-  canvas.addEventListener('mouseup',    () => { drawing = false; });
-  canvas.addEventListener('mouseleave', () => { drawing = false; });
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
-  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); canvas.classList.add('has-sig'); }, { passive: false });
-  canvas.addEventListener('touchend',   () => { drawing = false; });
+  initSigCanvas('providerSigContractCanvas', {});
 }
 
 function clearProviderContractSig() {
@@ -1816,42 +1838,9 @@ function clearProviderContractSig() {
   canvas.classList.remove('has-sig');
 }
 
+/* — Firma del cliente — */
 function initClientSigCanvas() {
-  const canvas = document.getElementById('clientSigCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  ctx.strokeStyle = '#1A1A1A';
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  let drawing = false;
-
-  function getPos(e) {
-    const r = canvas.getBoundingClientRect();
-    const t = e.touches ? e.touches[0] : e;
-    return {
-      x: (t.clientX - r.left) * (canvas.width / r.width),
-      y: (t.clientY - r.top) * (canvas.height / r.height)
-    };
-  }
-  canvas.addEventListener('mousedown', e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
-  canvas.addEventListener('mousemove', e => {
-    if (!drawing) return;
-    const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
-    canvas.classList.add('has-sig'); updateSignBtn();
-  });
-  canvas.addEventListener('mouseup',    () => { drawing = false; });
-  canvas.addEventListener('mouseleave', () => { drawing = false; });
-  canvas.addEventListener('touchstart', e => {
-    e.preventDefault(); drawing = true;
-    const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
-  }, { passive: false });
-  canvas.addEventListener('touchmove', e => {
-    e.preventDefault(); if (!drawing) return;
-    const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
-    canvas.classList.add('has-sig'); updateSignBtn();
-  }, { passive: false });
-  canvas.addEventListener('touchend', () => { drawing = false; });
+  initSigCanvas('clientSigCanvas', { onDraw: updateSignBtn });
 }
 
 function clearClientSig() {
@@ -2000,15 +1989,15 @@ function renderCreate(root, hdr) {
       </div>
       <div class="form-group">
         <label class="form-label">Nombre de la plantilla <span class="req">*</span></label>
-        <input class="form-input" value="${d.name}" placeholder="Ej: Contrato Fotografía de Moda" oninput="wizSet('name',this.value)">
+        <input class="form-input" value="${esc(d.name)}" placeholder="Ej: Contrato Fotografía de Moda" oninput="wizSet('name',this.value)">
       </div>
       <div class="form-group">
         <label class="form-label">Subtítulo del contrato</label>
-        <input class="form-input" value="${d.subtitle}" placeholder="Ej: Sesión de fotografía profesional" oninput="wizSet('subtitle',this.value)">
+        <input class="form-input" value="${esc(d.subtitle)}" placeholder="Ej: Sesión de fotografía profesional" oninput="wizSet('subtitle',this.value)">
       </div>
       <div class="form-group">
         <label class="form-label">Descripción del servicio</label>
-        <textarea class="form-textarea" placeholder="El prestador se compromete a..." oninput="wizSet('objectText',this.value)">${d.objectText}</textarea>
+        <textarea class="form-textarea" placeholder="El prestador se compromete a..." oninput="wizSet('objectText',this.value)">${esc(d.objectText)}</textarea>
       </div>`;
   }
 
@@ -2016,8 +2005,8 @@ function renderCreate(root, hdr) {
     const items = d.services.map((s, i) => `
       <div class="item-row">
         <div class="item-inputs">
-          <input class="form-input" placeholder="Nombre del servicio (ej: Sesión fotográfica)" value="${s.name}" oninput="wizSvc(${i},'name',this.value)">
-          <input class="form-input" placeholder="Descripción breve" value="${s.desc||''}" oninput="wizSvc(${i},'desc',this.value)">
+          <input class="form-input" placeholder="Nombre del servicio (ej: Sesión fotográfica)" value="${esc(s.name)}" oninput="wizSvc(${i},'name',this.value)">
+          <input class="form-input" placeholder="Descripción breve" value="${esc(s.desc||'')}" oninput="wizSvc(${i},'desc',this.value)">
         </div>
         ${d.services.length > 1 ? `<button class="btn btn-danger-ghost item-remove" onclick="wizRmSvc(${i})">✕</button>` : ''}
       </div>`).join('');
@@ -2032,8 +2021,8 @@ function renderCreate(root, hdr) {
     const items = d.prices.map((p, i) => `
       <div class="item-row">
         <div class="item-inputs">
-          <input class="form-input" placeholder="Concepto (ej: Servicio base)" value="${p.concept}" oninput="wizPrc(${i},'concept',this.value)">
-          <input class="form-input" placeholder="Importe (ej: 300,00 €)" value="${p.amount}" oninput="wizPrc(${i},'amount',this.value)">
+          <input class="form-input" placeholder="Concepto (ej: Servicio base)" value="${esc(p.concept)}" oninput="wizPrc(${i},'concept',this.value)">
+          <input class="form-input" placeholder="Importe (ej: 300,00 €)" value="${esc(p.amount)}" oninput="wizPrc(${i},'amount',this.value)">
         </div>
         ${d.prices.length > 1 ? `<button class="btn btn-danger-ghost item-remove" onclick="wizRmPrc(${i})">✕</button>` : ''}
       </div>`).join('');
@@ -2044,7 +2033,7 @@ function renderCreate(root, hdr) {
       </button>
       <div style="margin-top:22px">
         <label class="form-label">Condiciones de pago</label>
-        <textarea class="form-textarea" placeholder="Describe los plazos y forma de pago..." oninput="wizSet('paymentTerms',this.value)">${d.paymentTerms}</textarea>
+        <textarea class="form-textarea" placeholder="Describe los plazos y forma de pago..." oninput="wizSet('paymentTerms',this.value)">${esc(d.paymentTerms)}</textarea>
       </div>`;
   }
 
@@ -2151,6 +2140,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (c) {
     const data = decodeUrl(c);
     if (data) { S.view = 'contract'; S.contractData = data; }
+    else { S.view = 'badlink'; }
   }
   render();
 });
