@@ -4,9 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mis Contratos</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://fonts.googleapis.com;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; worker-src 'self' blob:; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://fonts.googleapis.com;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,5 95,50 50,95 5,50' fill='%23C4943A'/></svg>">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#111111">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta property="og:title" content="Mis Contratos">
+  <meta property="og:description" content="Gestiona y comparte contratos profesionales">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     /* ═══════════════════════════════════════
        TOKENS
@@ -17,7 +27,7 @@
       --surface2:    #FAFAF7;
       --primary:     #111111;
       --secondary:   #4A4A4A;
-      --tertiary:    #888888;
+      --tertiary:    #767676;
       --border:      #E3DDD5;
       --border2:     #EDE9E3;
 
@@ -149,6 +159,15 @@
     .btn-sm { padding: 7px 13px; font-size: 13px; }
     .btn-lg { padding: 12px 22px; font-size: 14.5px; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+    /* ═══════════════════════════════════════
+       FOCUS VISIBLE (WCAG 2.1 AA)
+    ═══════════════════════════════════════ */
+    :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 2px; }
+    button:focus-visible, .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .form-input:focus-visible, .form-textarea:focus-visible { outline: none; }
+    .tpl-card:focus-visible, .tpl-card-new:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: var(--r-lg); }
+    .cat-card:focus-visible, .clause-row:focus-visible, .pack-option:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
     /* ═══════════════════════════════════════
        LAYOUT
@@ -482,7 +501,7 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: #AAAAAA;
+      color: #777777;
       margin-top: 7px !important;
     }
 
@@ -570,6 +589,15 @@
 
     /* Signature canvas pad */
     .sig-canvas-wrap { position: relative; margin: 4px 0 6px; }
+    .sig-canvas-wrap::after {
+      content: 'Dibuja tu firma aquí';
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: #C8C0B0; font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      pointer-events: none; white-space: nowrap;
+    }
+    .sig-canvas-wrap:has(.has-sig)::after { display: none; }
     .sig-canvas {
       display: block; width: 100%; height: 80px;
       border: 1.5px dashed #ccc; border-radius: 6px;
@@ -605,6 +633,8 @@
       width: 17px; height: 17px; accent-color: var(--gold);
       cursor: pointer; flex-shrink: 0; margin-top: 3px;
     }
+    /* Disabled-look for sign button without HTML disabled attr */
+    .btn-not-ready { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
     .consent-label { cursor: pointer; }
 
     /* Sign action bar (client view) */
@@ -931,6 +961,78 @@
     .toast.ok { background: var(--success); }
 
     /* ═══════════════════════════════════════
+       WHATSAPP BUTTON
+    ═══════════════════════════════════════ */
+    .btn-whatsapp {
+      background: #25D366;
+      color: #fff;
+    }
+    .btn-whatsapp:hover {
+      background: #1FB855;
+      box-shadow: 0 4px 14px rgba(37,211,102,0.35);
+    }
+    .share-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .share-actions .btn { width: 100%; justify-content: center; }
+
+    /* ═══════════════════════════════════════
+       LOADING OVERLAY
+    ═══════════════════════════════════════ */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .loading-overlay.open { display: flex; }
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      color: #fff;
+      font-size: 14.5px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    /* ═══════════════════════════════════════
+       SIGN SUCCESS MODAL
+    ═══════════════════════════════════════ */
+    .modal-success .modal { max-width: 440px; }
+    .modal-success .modal-foot {
+      flex-direction: column;
+      gap: 10px;
+      padding-bottom: 26px;
+    }
+    .modal-success .modal-foot .btn { width: 100%; justify-content: center; }
+
+    /* Hidden PDF render container */
+    #pdf-render {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 800px;
+      background: #fff;
+      pointer-events: none;
+    }
+
+    /* ═══════════════════════════════════════
        PRINT
     ═══════════════════════════════════════ */
     @media print {
@@ -950,6 +1052,40 @@
       .contract-sheet { padding: 32px 24px; }
       .cat-grid { grid-template-columns: repeat(2, 1fr); }
       .wiz-label { display: none; }
+
+      /* App header */
+      .app-header { padding: 0 16px; height: 52px; }
+      .logo { font-size: 16px; }
+
+      /* Buttons — Apple HIG 44px touch target */
+      .btn { min-height: 44px; }
+      .btn-sm { min-height: 36px; }
+      .btn-ghost, .btn-danger-ghost { min-height: 36px; }
+
+      /* Signature canvas taller on mobile */
+      .sig-canvas { height: 120px; }
+      .sig-canvas-wrap::after { content: 'Firma con tu dedo'; font-size: 14px; }
+
+      /* Consent checkboxes — bigger touch target */
+      .consent-check { width: 22px; height: 22px; }
+      .consent-row { gap: 14px; padding: 12px 0; }
+
+      /* Sign action bar */
+      .sign-action-bar { padding: 20px 16px; margin: 20px 12px 40px; }
+
+      /* Modal — bottom sheet on mobile */
+      .modal-overlay { align-items: flex-end; padding: 0; }
+      .modal {
+        max-width: 100%; border-radius: 14px 14px 0 0;
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      }
+      .modal-overlay.open .modal { transform: translateY(0); }
+    }
+
+    @media (max-width: 400px) {
+      /* Pack selector — single column on very narrow screens */
+      .pack-selector { grid-template-columns: 1fr; }
     }
 
     /* ═══════════════════════════════════════
@@ -958,26 +1094,160 @@
     .divider { height: 1px; background: var(--border2); margin: 20px 0; }
     .text-gold { color: var(--gold); }
     .text-muted { color: var(--tertiary); font-size: 13px; }
+
+    /* ═══════════════════════════════════════
+       DARK MODE TOKENS
+    ═══════════════════════════════════════ */
+    @media (prefers-color-scheme: dark) {
+      :root:not(.light) {
+        --bg:          #1A1A1A;
+        --surface:     #242424;
+        --surface2:    #2A2A2A;
+        --primary:     #F0F0F0;
+        --secondary:   #B0B0B0;
+        --tertiary:    #777777;
+        --border:      #3A3A3A;
+        --border2:     #333333;
+        --gold:        #D4A44A;
+        --gold-light:  rgba(212,164,74,0.12);
+        --gold-border: rgba(212,164,74,0.3);
+        --gold-dark:   #E8B85A;
+        --blue:        #5B82EA;
+        --blue-light:  rgba(91,130,234,0.1);
+        --success:     #2AAA6A;
+        --danger:      #E05A50;
+        --shadow-sm:  0 1px 4px rgba(0,0,0,0.4), 0 2px 12px rgba(0,0,0,0.3);
+        --shadow-md:  0 4px 16px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3);
+        --shadow-lg:  0 12px 40px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+        --shadow-xl:  0 24px 64px rgba(0,0,0,0.7);
+      }
+    }
+    .dark {
+      --bg:          #1A1A1A;
+      --surface:     #242424;
+      --surface2:    #2A2A2A;
+      --primary:     #F0F0F0;
+      --secondary:   #B0B0B0;
+      --tertiary:    #777777;
+      --border:      #3A3A3A;
+      --border2:     #333333;
+      --gold:        #D4A44A;
+      --gold-light:  rgba(212,164,74,0.12);
+      --gold-border: rgba(212,164,74,0.3);
+      --gold-dark:   #E8B85A;
+      --blue:        #5B82EA;
+      --blue-light:  rgba(91,130,234,0.1);
+      --success:     #2AAA6A;
+      --danger:      #E05A50;
+      --shadow-sm:  0 1px 4px rgba(0,0,0,0.4), 0 2px 12px rgba(0,0,0,0.3);
+      --shadow-md:  0 4px 16px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3);
+      --shadow-lg:  0 12px 40px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+      --shadow-xl:  0 24px 64px rgba(0,0,0,0.7);
+    }
+
+    /* Header always dark regardless of theme */
+    .app-header { background: #111111; }
+
+    /* Contract view always light for PDF quality */
+    .contract-full-page { background: #EFEDE8 !important; color: #1A1A1A !important; }
+    .contract-full-page .sign-action-bar { background: #fff !important; border-color: rgba(0,0,0,0.12) !important; }
+    .contract-full-page .sign-hint,
+    .contract-full-page .sign-status { color: #4A4A4A !important; }
+    .dark .contract-full-page .sign-hint,
+    .dark .contract-full-page .sign-status { color: #4A4A4A !important; }
+
+    /* ═══════════════════════════════════════
+       VIEW TRANSITIONS
+    ═══════════════════════════════════════ */
+    #root {
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+    #root.view-entering {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    /* ═══════════════════════════════════════
+       CARD ENTRANCE ANIMATIONS
+    ═══════════════════════════════════════ */
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .grid .tpl-card, .grid .tpl-card-new {
+      animation: cardIn 0.35s ease both;
+    }
+
+    /* ═══════════════════════════════════════
+       THEME TOGGLE BUTTON
+    ═══════════════════════════════════════ */
+    .btn-theme {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 8px 10px;
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-theme:hover { background: rgba(255,255,255,0.2); }
+    .btn-theme:active { transform: scale(0.97); }
+
+    /* ═══════════════════════════════════════
+       FILL PROGRESS BAR
+    ═══════════════════════════════════════ */
+    .fill-progress-wrap { margin-bottom: 16px; }
+    .fill-progress-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--secondary);
+      margin-bottom: 6px;
+      transition: color 0.3s;
+    }
+    .fill-progress-track {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .fill-progress-bar {
+      height: 100%;
+      background: var(--gold);
+      border-radius: 2px;
+      transition: width 0.3s ease, background 0.3s ease;
+    }
   </style>
 </head>
 <body>
 
 <header class="app-header">
-  <a class="logo" onclick="navigate('home')">
-    <span class="logo-diamond">◆</span>
-    Mis Contratos
-  </a>
-  <div class="header-right" id="headerRight"></div>
+  <nav aria-label="Navegación principal">
+    <a class="logo" onclick="navigate('home')" tabindex="0" onkeydown="if(event.key==='Enter')navigate('home')">
+      <span class="logo-diamond">◆</span>
+      Mis Contratos
+    </a>
+  </nav>
+  <div class="header-right">
+    <button id="themeToggle" class="btn-theme" onclick="toggleTheme()" title="Cambiar tema">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <div id="headerRight" style="display:contents"></div>
+  </div>
 </header>
 
-<div id="root"></div>
+<main id="root"></main>
 
 <!-- Share modal -->
-<div class="modal-overlay" id="shareModal">
+<div class="modal-overlay" id="shareModal" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle" aria-hidden="true">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-icon">✓</div>
-      <div class="modal-title">¡Contrato listo!</div>
+      <div class="modal-icon" aria-hidden="true">✓</div>
+      <div class="modal-title" id="shareModalTitle">¡Contrato listo!</div>
       <p class="modal-sub">El enlace ya está generado. Cópialo y envíalo a tu cliente — solo verá este contrato.</p>
     </div>
     <div class="modal-body">
@@ -988,7 +1258,13 @@
           <button class="btn btn-gold btn-sm" id="modalCopyBtn" onclick="doCopy()">Copiar</button>
         </div>
       </div>
-      <p class="url-hint">
+      <div class="share-actions">
+        <button class="btn btn-whatsapp" onclick="shareWhatsApp()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+          Enviar por WhatsApp
+        </button>
+      </div>
+      <p class="url-hint" style="margin-top:10px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Tu cliente abrirá el enlace y solo verá este contrato para descargarlo como PDF.
       </p>
@@ -1000,7 +1276,35 @@
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- Sign success modal -->
+<div class="modal-overlay modal-success" id="signSuccessModal" role="dialog" aria-modal="true" aria-labelledby="signSuccessTitle" aria-hidden="true">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-icon" aria-hidden="true">✓</div>
+      <div class="modal-title" id="signSuccessTitle">Contrato firmado correctamente</div>
+      <p class="modal-sub">Ambas firmas y los consentimientos han quedado registrados en el PDF.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gold btn-lg" onclick="downloadSignedPDF()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Descargar PDF firmado
+      </button>
+      <button class="btn btn-outline" onclick="openSignedEmail()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 8l9 6 9-6M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Enviar por email
+      </button>
+      <button class="btn btn-ghost" onclick="closeSignSuccess()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay for PDF generation -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">Generando PDF…</div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* ══════════════════════════════════════════════
@@ -1192,15 +1496,16 @@ function v(vals, id, fb) {
 function renderContract(spec, vals, interactive) {
   let n = 1;
 
-  const services = (spec.services || []).map(s =>
-    `<li><strong>${s.name}</strong>${s.desc || s.description ? ' — ' + (s.desc || s.description) : ''}</li>`
-  ).join('');
+  const services = (spec.services || []).map(s => {
+    const desc = s.desc || s.description;
+    return `<li><strong>${esc(s.name)}</strong>${desc ? ' — ' + esc(desc) : ''}</li>`;
+  }).join('');
 
   const extraClausesData = (spec.extraClauses || []).map(c => {
     const paragraphs = (c.content || '').split('\n').map(line => {
       if (!line.trim()) return '';
-      if (line.startsWith('•')) return `<li>${line.slice(1).trim()}</li>`;
-      return `<p>${line}</p>`;
+      if (line.startsWith('•')) return `<li>${esc(line.slice(1).trim())}</li>`;
+      return `<p>${esc(line)}</p>`;
     });
     let html = '';
     let inList = false;
@@ -1210,18 +1515,17 @@ function renderContract(spec, vals, interactive) {
       else { if (inList) { html += '</ul>'; inList = false; } html += p; }
     }
     if (inList) html += '</ul>';
-    return { title: c.title, html };
+    return { title: esc(c.title), html };
   });
 
   const priceRows = (spec.prices || []).map((p, i) =>
     `<tr${i===0?' style="background:#FAFAF5;font-weight:600"':''}>
-      <td>${p.concept}</td>
-      <td>${p.amount}</td>
+      <td>${esc(p.concept)}</td>
+      <td>${esc(p.amount)}</td>
     </tr>`
   ).join('');
 
   // Genera una fila de consentimiento: interactiva (checkbox) o estática (☐/☑)
-  let _chkIdx = 0;
   function cRow(id, html) {
     if (interactive) {
       return `<div class="consent-row">
@@ -1248,12 +1552,12 @@ function renderContract(spec, vals, interactive) {
   const dateStr = vals.date ? fmtDate(vals.date) : blank('fecha');
 
   return `<div class="contract-doc">
-    <h1>${spec.mainTitle || 'CONTRATO DE PRESTACIÓN DE SERVICIOS'}</h1>
-    <p class="doc-subtitle">${spec.subtitle || ''}</p>
+    <h1>${esc(spec.mainTitle || 'CONTRATO DE PRESTACIÓN DE SERVICIOS')}</h1>
+    <p class="doc-subtitle">${esc(spec.subtitle || '')}</p>
     <p class="doc-location">${city}, ${dateStr}</p>
 
     <div class="doc-section">
-      <div class="doc-section-title">${n++}. PARTES DEL CONTRATO</div>
+      <h3 class="doc-section-title">${n++}. PARTES DEL CONTRATO</h3>
       <p>El presente contrato se celebra entre:</p>
       <div class="parties-grid">
         <div class="party-box">
@@ -1280,26 +1584,26 @@ function renderContract(spec, vals, interactive) {
     </div>
 
     <div class="doc-section">
-      <div class="doc-section-title">${n++}. OBJETO DEL CONTRATO</div>
-      <p>${spec.objectText || 'El prestador se compromete a prestar los servicios detallados a continuación.'}</p>
+      <h3 class="doc-section-title">${n++}. OBJETO DEL CONTRATO</h3>
+      <p>${esc(spec.objectText || 'El prestador se compromete a prestar los servicios detallados a continuación.')}</p>
     </div>
 
     <div class="doc-section">
-      <div class="doc-section-title">${n++}. SERVICIOS INCLUIDOS</div>
-      ${spec.priceIntro ? `<p>${spec.priceIntro}</p>` : ''}
+      <h3 class="doc-section-title">${n++}. SERVICIOS INCLUIDOS</h3>
+      ${spec.priceIntro ? `<p>${esc(spec.priceIntro)}</p>` : ''}
       <ul>${services}</ul>
     </div>
 
-    ${extraClausesData.map(c => `<div class="doc-section"><div class="doc-section-title">${n++}. ${c.title}</div>${c.html}</div>`).join('')}
+    ${extraClausesData.map(c => `<div class="doc-section"><h3 class="doc-section-title">${n++}. ${c.title}</h3>${c.html}</div>`).join('')}
 
     <div class="doc-section">
-      <div class="doc-section-title">${n++}. PRECIO Y FORMA DE PAGO</div>
+      <h3 class="doc-section-title">${n++}. PRECIO Y FORMA DE PAGO</h3>
       <table class="price-tbl">${priceRows}</table>
-      <p><strong>Forma de pago:</strong> ${spec.paymentTerms || ''}</p>
+      <p><strong>Forma de pago:</strong> ${esc(spec.paymentTerms || '')}</p>
     </div>
 
     <div class="doc-section">
-      <div class="doc-section-title">${n++}. FIRMAS Y CONSENTIMIENTOS</div>
+      <h3 class="doc-section-title">${n++}. FIRMAS Y CONSENTIMIENTOS</h3>
       <div class="consent-block">
         ${aiRow}
         ${imageConsentRow}
@@ -1312,9 +1616,10 @@ function renderContract(spec, vals, interactive) {
             ? `<img src="${vals.provider_sig}" class="sig-img" alt="Firma del prestador">`
             : interactive
               ? `<div class="sig-canvas-wrap">
-                  <canvas id="providerSigContractCanvas" class="sig-canvas" width="300" height="80"></canvas>
-                  <button type="button" class="sig-clear-btn" onclick="clearProviderContractSig()">Borrar</button>
-                 </div>`
+                  <canvas id="providerSigContractCanvas" class="sig-canvas" width="300" height="80" aria-label="Área de firma digital. Dibuja tu firma con el ratón o el dedo."></canvas>
+                  <button type="button" class="sig-clear-btn" onclick="clearProviderContractSig()" aria-label="Borrar firma del prestador">Borrar</button>
+                 </div>
+                 <button type="button" class="btn btn-ghost btn-sm" onclick="showTextSig('providerSigContractCanvas')" style="margin-top:4px;font-size:12px">O escribe tu nombre como firma</button>`
               : `<div class="sig-line"></div>`}
           <div class="sig-name">${v(vals,'provider_name','')}</div>
           <div class="sig-sublabel">Nombre y firma</div>
@@ -1323,9 +1628,10 @@ function renderContract(spec, vals, interactive) {
           <div class="sig-role">Cliente</div>
           ${interactive
             ? `<div class="sig-canvas-wrap">
-                <canvas id="clientSigCanvas" class="sig-canvas" width="300" height="80"></canvas>
-                <button type="button" class="sig-clear-btn" onclick="clearClientSig()">Borrar</button>
-               </div>`
+                <canvas id="clientSigCanvas" class="sig-canvas" width="300" height="80" aria-label="Área de firma digital. Dibuja tu firma con el ratón o el dedo."></canvas>
+                <button type="button" class="sig-clear-btn" onclick="clearClientSig()" aria-label="Borrar firma del cliente">Borrar</button>
+               </div>
+               <button type="button" class="btn btn-ghost btn-sm" onclick="showTextSig('clientSigCanvas')" style="margin-top:4px;font-size:12px">O escribe tu nombre como firma</button>`
             : vals.client_sig
               ? `<img src="${vals.client_sig}" class="sig-img" alt="Firma del cliente">`
               : `<div class="sig-line"></div>`
@@ -1341,6 +1647,24 @@ function renderContract(spec, vals, interactive) {
 /* ══════════════════════════════════════════════
    SHARING
 ══════════════════════════════════════════════ */
+// base64 URL-safe (evita +, /, = que requieren encoding en URLs)
+function b64urlEncode(bytes) {
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64urlDecode(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  const bin = atob(str);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 function makeUrl(tplId, vals) {
   const tpl = getTpl(tplId); if (!tpl) return null;
   let payload;
@@ -1353,19 +1677,47 @@ function makeUrl(tplId, vals) {
   } else {
     payload = JSON.stringify({ spec: tpl.spec, name: tpl.name, v: vals });
   }
-  const enc = btoa(encodeURIComponent(payload));
+
+  let enc;
+  // Preferir compresión con pako (prefijo 'Z.') si está disponible
+  if (window.pako) {
+    try {
+      const compressed = pako.deflate(new TextEncoder().encode(payload));
+      enc = 'Z.' + b64urlEncode(compressed);
+    } catch {
+      enc = btoa(encodeURIComponent(payload));
+    }
+  } else {
+    enc = btoa(encodeURIComponent(payload));
+  }
   return window.location.href.split('?')[0] + '?c=' + enc;
 }
 
 function decodeUrl(c) {
   try {
-    const d = JSON.parse(decodeURIComponent(atob(c)));
+    let d;
+    if (c.startsWith('Z.') && window.pako) {
+      const bytes = b64urlDecode(c.slice(2));
+      const json = new TextDecoder().decode(pako.inflate(bytes));
+      d = JSON.parse(json);
+    } else {
+      // Legacy: btoa(encodeURIComponent(payload))
+      d = JSON.parse(decodeURIComponent(atob(c)));
+    }
     if (d.t) {
       const tpl = BUILT_IN[d.t]; if (!tpl) return null;
       return { spec: tpl.spec, name: tpl.name, values: d.v || {} };
     }
     return { spec: d.spec, name: d.name, values: d.v || {} };
   } catch { return null; }
+}
+
+function shareWhatsApp() {
+  if (!S.shareUrl) return;
+  const tpl = getTpl(S.selId);
+  const name = tpl ? tpl.name : 'servicios';
+  const msg = `Hola! Te envío el contrato de ${name}. Puedes verlo y firmarlo aquí: ${S.shareUrl}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
 }
 
 /* ══════════════════════════════════════════════
@@ -1388,10 +1740,20 @@ function openModal(url) {
   document.getElementById('modalUrl').textContent = url;
   document.getElementById('modalCopyBtn').textContent = 'Copiar';
   document.getElementById('modalCopyBtn').className = 'btn btn-gold btn-sm';
-  document.getElementById('shareModal').classList.add('open');
+  S._prevFocus = document.activeElement;
+  const overlay = document.getElementById('shareModal');
+  overlay.classList.add('open');
+  overlay.removeAttribute('aria-hidden');
+  requestAnimationFrame(() => {
+    const firstBtn = overlay.querySelector('button');
+    if (firstBtn) firstBtn.focus();
+  });
 }
 function closeModal() {
-  document.getElementById('shareModal').classList.remove('open');
+  const overlay = document.getElementById('shareModal');
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+  if (S._prevFocus) { S._prevFocus.focus(); S._prevFocus = null; }
 }
 function doCopy() {
   navigator.clipboard.writeText(S.shareUrl).then(() => {
@@ -1408,6 +1770,14 @@ function openContractPreview() {
 
 document.getElementById('shareModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
+});
+
+/* ESC cierra modales */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (document.getElementById('shareModal').classList.contains('open')) closeModal();
+    else if (document.getElementById('signSuccessModal').classList.contains('open')) closeSignSuccess();
+  }
 });
 
 /* ══════════════════════════════════════════════
@@ -1462,6 +1832,115 @@ function doPrint(spec, vals) {
 }
 
 /* ══════════════════════════════════════════════
+   PDF GENERATION (html2canvas + jsPDF)
+══════════════════════════════════════════════ */
+function showLoading(text) {
+  const ov = document.getElementById('loadingOverlay');
+  if (!ov) return;
+  document.getElementById('loadingText').textContent = text || 'Generando PDF…';
+  ov.classList.add('open');
+}
+function hideLoading() {
+  const ov = document.getElementById('loadingOverlay');
+  if (ov) ov.classList.remove('open');
+}
+
+async function generatePDF(spec, vals, filename) {
+  if (!window.html2canvas || !window.jspdf) {
+    toast('No se pudieron cargar las librerías de PDF. Usando impresión.');
+    doPrint(spec, vals);
+    return false;
+  }
+
+  // Crear contenedor temporal con el contrato renderizado
+  let host = document.getElementById('pdf-render');
+  if (host) host.remove();
+  host = document.createElement('div');
+  host.id = 'pdf-render';
+  // Insertamos el documento completo (con sus estilos) dentro del host
+  host.innerHTML = getPrintDoc(spec, vals).replace(/^[\s\S]*?<body>/i, '').replace(/<\/body>[\s\S]*$/i, '');
+
+  // Extraer los <style> del print doc e inyectarlos dentro del host
+  const printDoc = getPrintDoc(spec, vals);
+  const styleMatch = printDoc.match(/<style[\s\S]*?<\/style>/i);
+  if (styleMatch) {
+    const styleEl = document.createElement('style');
+    styleEl.textContent = styleMatch[0].replace(/<\/?style[^>]*>/gi, '');
+    host.prepend(styleEl);
+  }
+  document.body.appendChild(host);
+
+  try {
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
+    // Pequeña pausa para garantizar layout de imágenes de firma
+    await new Promise(r => setTimeout(r, 120));
+
+    const canvas = await html2canvas(host, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      windowWidth: 800,
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageW = pdf.internal.pageSize.getWidth();   // 210
+    const pageH = pdf.internal.pageSize.getHeight();  // 297
+    const margin = 10;
+    const usableW = pageW - margin * 2;
+    const usableH = pageH - margin * 2;
+
+    const imgW = usableW;
+    const imgH = (canvas.height * imgW) / canvas.width;
+
+    if (imgH <= usableH) {
+      const imgData = canvas.toDataURL('image/jpeg', 0.94);
+      pdf.addImage(imgData, 'JPEG', margin, margin, imgW, imgH);
+    } else {
+      // Contenido largo: partir el canvas en páginas de alto "usableH"
+      const pxPerMm = canvas.width / imgW;
+      const pagePxH = Math.floor(usableH * pxPerMm);
+      let yOffset = 0;
+      let first = true;
+      while (yOffset < canvas.height) {
+        const sliceH = Math.min(pagePxH, canvas.height - yOffset);
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceH;
+        const ctx = pageCanvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        const imgData = pageCanvas.toDataURL('image/jpeg', 0.94);
+        const sliceMmH = sliceH / pxPerMm;
+        if (!first) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', margin, margin, imgW, sliceMmH);
+        yOffset += sliceH;
+        first = false;
+      }
+    }
+
+    pdf.save(filename || 'contrato.pdf');
+    return true;
+  } catch (err) {
+    console.error('Error generando PDF:', err);
+    toast('Error al generar el PDF. Usando impresión.');
+    doPrint(spec, vals);
+    return false;
+  } finally {
+    if (host && host.parentNode) host.parentNode.removeChild(host);
+  }
+}
+
+function safeFilename(s) {
+  return String(s || 'contrato').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'contrato';
+}
+
+/* ══════════════════════════════════════════════
    ROUTER
 ══════════════════════════════════════════════ */
 function navigate(view, opts) {
@@ -1474,6 +1953,9 @@ function navigate(view, opts) {
 function render() {
   const root = document.getElementById('root');
   const hdr  = document.getElementById('headerRight');
+
+  // Start entrance animation
+  root.classList.add('view-entering');
 
   const params = new URLSearchParams(window.location.search);
   const c = params.get('c');
@@ -1490,6 +1972,13 @@ function render() {
     case 'contract': renderContractPage(root, hdr); break;
     case 'badlink':  renderBadLink(root, hdr); break;
   }
+
+  // Remove entering class after first paint to trigger transition
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      root.classList.remove('view-entering');
+    });
+  });
 }
 
 function renderBadLink(root, hdr) {
@@ -1514,31 +2003,37 @@ function renderHome(root, hdr) {
     </button>`;
 
   const all = getAllTpl();
-  const cards = Object.values(all).map(t => `
-    <div class="tpl-card">
+  const allList = Object.values(all);
+  const cards = allList.map((t, idx) => `
+    <article class="tpl-card" style="animation-delay:${idx * 0.05}s" tabindex="0"
+      aria-label="${esc(t.name)}: ${esc(t.description || '')}"
+      onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();startFill('${t.id}')}">
       <div class="card-stripe" style="background:${t.color || '#C4943A'}"></div>
       <div class="card-body">
-        <div class="card-icon">${t.icon || '📄'}</div>
+        <div class="card-icon" aria-hidden="true">${t.icon || '📄'}</div>
         <div class="card-name">${esc(t.name)}</div>
         <div class="card-desc">${esc(t.description || '')}</div>
       </div>
       <div class="card-footer">
         <span class="card-badge ${t.isBuiltIn ? 'badge-base' : 'badge-custom'}">${t.isBuiltIn ? 'Base' : 'Personalizada'}</span>
         <div class="card-actions">
-          ${!t.isBuiltIn ? `<button class="btn btn-danger-ghost btn-sm" onclick="event.stopPropagation();doDelete('${t.id}')">Eliminar</button>` : ''}
-          <button class="btn btn-gold btn-sm" onclick="startFill('${t.id}')">Usar →</button>
+          ${!t.isBuiltIn ? `<button class="btn btn-danger-ghost btn-sm" onclick="event.stopPropagation();doDelete('${t.id}')" aria-label="Eliminar plantilla ${esc(t.name)}">Eliminar</button>` : ''}
+          <button class="btn btn-gold btn-sm" onclick="startFill('${t.id}')" aria-label="Usar plantilla ${esc(t.name)}">Usar →</button>
         </div>
       </div>
-    </div>`).join('');
+    </article>`).join('');
 
+  const newCardDelay = allList.length * 0.05;
   root.innerHTML = `
     <div class="page">
-      <div class="page-title">Mis Plantillas</div>
+      <h1 class="page-title">Mis Plantillas</h1>
       <p class="page-sub">Selecciona una plantilla, rellena los datos del cliente y comparte el contrato en segundos.</p>
       <div class="grid">
         ${cards}
-        <div class="tpl-card-new" onclick="startCreate()">
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <div class="tpl-card-new" style="animation-delay:${newCardDelay}s" onclick="startCreate()"
+          tabindex="0" role="button" aria-label="Crear nueva plantilla"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();startCreate()}">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
             <circle cx="18" cy="18" r="17" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
             <path d="M18 11v14M11 18h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
@@ -1585,10 +2080,11 @@ function field(id, label, type, ph) {
 function renderPackSelector(tpl) {
   const sel = S.fillVals._pack || 'basico';
   const packs = tpl.packs;
-  let html = '<div class="field-group-label">Pack de sesión</div><div class="pack-selector">';
+  let html = '<div class="field-group-label" id="packSelectorLabel">Pack de sesión</div><div class="pack-selector" role="radiogroup" aria-labelledby="packSelectorLabel">';
   for (const [key, pk] of Object.entries(packs)) {
     const active = sel === key ? ' pack-active' : '';
-    html += `<button class="pack-option${active}" onclick="selectPack('${key}')">
+    const checked = sel === key ? 'true' : 'false';
+    html += `<button class="pack-option${active}" onclick="selectPack('${key}')" role="radio" aria-checked="${checked}">
       <span class="pack-name">${pk.label}</span>
       <span class="pack-price">${pk.price} &euro;</span>
     </button>`;
@@ -1633,14 +2129,20 @@ function renderFill(root, hdr) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Plantillas
       </button>
-      <div class="page-title">${esc(tpl.name)}</div>
+      <h1 class="page-title">${esc(tpl.name)}</h1>
       <p class="page-sub">Rellena los datos del cliente para generar el contrato personalizado.</p>
 
       <div class="fill-layout">
         <div>
+          <div class="fill-progress-wrap">
+            <span id="fillProgressLabel" class="fill-progress-label">0 de 6 campos completados</span>
+            <div class="fill-progress-track">
+              <div id="fillProgressBar" class="fill-progress-bar" style="width:0%"></div>
+            </div>
+          </div>
           <div class="panel">
             <div class="panel-head">
-              <div class="panel-title">Datos del contrato</div>
+              <h2 class="panel-title">Datos del contrato</h2>
               <div class="panel-sub">Los campos vacíos quedarán como líneas en blanco</div>
             </div>
             <div class="panel-body">
@@ -1661,9 +2163,10 @@ function renderFill(root, hdr) {
                       <button class="btn btn-outline btn-sm" onclick="clearProviderSig()">✕ Borrar firma</button>
                      </div>`
                   : `<div class="sig-canvas-wrap">
-                      <canvas id="providerSigCanvas" class="sig-canvas" width="300" height="80"></canvas>
-                      <button type="button" class="sig-clear-btn" onclick="clearProviderSigCanvas()">Borrar</button>
+                      <canvas id="providerSigCanvas" class="sig-canvas" width="300" height="80" aria-label="Área de firma digital. Dibuja tu firma con el ratón o el dedo."></canvas>
+                      <button type="button" class="sig-clear-btn" onclick="clearProviderSigCanvas()" aria-label="Borrar firma">Borrar</button>
                      </div>
+                     <button type="button" class="btn btn-ghost btn-sm" onclick="showTextSig('providerSigCanvas')" style="margin-top:6px;font-size:12px">O escribe tu nombre como firma</button>
                      <p class="sig-fill-hint">Dibuja tu firma — se guardará en el contrato</p>`
                 }
               </div>
@@ -1698,12 +2201,14 @@ function renderFill(root, hdr) {
       </div>
     </div>`;
   initProviderSigCanvas();
+  updateProgressBar();
 }
 
 function setFill(id, val) {
   S.fillVals[id] = val;
   const tpl = getTpl(S.selId);
   if (tpl) document.getElementById('previewBody').innerHTML = renderContract(getResolvedSpec(tpl, S.fillVals), S.fillVals);
+  updateProgressBar();
 }
 
 function doShare() {
@@ -1716,9 +2221,17 @@ function doShare() {
   openModal(url);
 }
 
-function doPrintFill() {
+async function doPrintFill() {
   const tpl = getTpl(S.selId); if (!tpl) return;
-  doPrint(getResolvedSpec(tpl, S.fillVals), S.fillVals);
+  const spec = getResolvedSpec(tpl, S.fillVals);
+  const filename = safeFilename(tpl.name) + '.pdf';
+  showLoading('Generando PDF…');
+  try {
+    const ok = await generatePDF(spec, S.fillVals, filename);
+    if (ok) toast('PDF descargado', 'ok');
+  } finally {
+    hideLoading();
+  }
 }
 
 /* ══════════════════════════════════════════════
@@ -1743,7 +2256,7 @@ function renderContractPage(root, hdr) {
           3. Dibuja tu firma en el recuadro de <em>Cliente</em>.<br>
           4. Pulsa <strong>Firmar y confirmar</strong> — se generará el PDF y se abrirá el correo para ambas partes.
         </p>
-        <button class="btn btn-gold btn-lg" id="signBtn" onclick="doClientSign()" disabled style="width:100%;margin-bottom:10px">
+        <button class="btn btn-gold btn-lg btn-not-ready" id="signBtn" onclick="doClientSign()" style="width:100%;margin-bottom:10px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Firmar y confirmar contrato
         </button>
@@ -1753,6 +2266,12 @@ function renderContractPage(root, hdr) {
 
   initClientSigCanvas();
   initProviderContractCanvas();
+
+  // Scroll to first editable field on mobile
+  setTimeout(() => {
+    const first = document.querySelector('.contract-inline-input');
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 500);
 }
 
 /* ══════════════════════════════════════════════
@@ -1774,7 +2293,7 @@ function initSigCanvas(canvasId, opts) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 2;
+  ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = window.innerWidth < 600 ? 2.5 : 2;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   let drawing = false;
   const onDraw = opts && opts.onDraw;
@@ -1801,6 +2320,7 @@ function initProviderSigCanvas() {
       S.fillVals.provider_sig = canvasToJpeg(canvas);
       const tpl = getTpl(S.selId);
       if (tpl) document.getElementById('previewBody').innerHTML = renderContract(getResolvedSpec(tpl, S.fillVals), S.fillVals);
+      updateProgressBar();
     }
   });
 }
@@ -1813,6 +2333,7 @@ function clearProviderSigCanvas() {
   S.fillVals.provider_sig = null;
   const tpl = getTpl(S.selId);
   if (tpl) document.getElementById('previewBody').innerHTML = renderContract(getResolvedSpec(tpl, S.fillVals), S.fillVals);
+  updateProgressBar();
 }
 
 function clearProviderSig() {
@@ -1865,7 +2386,8 @@ function updateSignBtn() {
   if (!btn) return;
   const hasSig   = canvas && !isCanvasBlank(canvas);
   const hasTerms = terms && terms.checked;
-  btn.disabled   = !(hasSig && hasTerms);
+  const ready    = hasSig && hasTerms;
+  btn.classList.toggle('btn-not-ready', !ready);
   if (status) {
     if (!hasTerms && !hasSig) status.textContent = 'Marca al menos la casilla de aceptación y dibuja tu firma';
     else if (!hasTerms)       status.textContent = 'Marca la casilla "El cliente ha leído y acepta los términos"';
@@ -1874,10 +2396,24 @@ function updateSignBtn() {
   }
 }
 
-function doClientSign() {
+// Guardado para reutilizar desde el modal de éxito
+let _signedContext = null;
+
+async function doClientSign() {
   const canvas = document.getElementById('clientSigCanvas');
   const d = S.contractData;
   if (!d || !canvas) return;
+
+  // If not ready, scroll to what's missing
+  const hasTerms = document.getElementById('chk-terms')?.checked;
+  const hasSig   = !isCanvasBlank(canvas);
+  if (!hasTerms || !hasSig) {
+    const target = !hasTerms
+      ? document.getElementById('chk-terms')
+      : canvas;
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
 
   // Recopilar estado de checkboxes
   const checked = {};
@@ -1898,26 +2434,64 @@ function doClientSign() {
     sign_date: new Date().toISOString(),
   };
 
-  // Abrir correo PRIMERO — dentro del contexto de clic del usuario
-  const to = [d.values.provider_email, d.values.client_email].filter(Boolean).join(',');
-  if (to) {
-    const subject = encodeURIComponent(`Contrato firmado — ${d.name || 'Servicios'}`);
-    const clientName = d.values.client_name || 'el cliente';
-    const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
-    const body = encodeURIComponent(
-      `Hola,\n\n${clientName} ha firmado el contrato de servicios el ${dateStr}.\n\nSe adjunta el PDF del contrato firmado.\n\nUn saludo.`
-    );
-    const a = document.createElement('a');
-    a.href = `mailto:${to}?subject=${subject}&body=${body}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  // Guardar contexto para el modal (descarga y email)
+  _signedContext = { spec: d.spec, vals: finalVals, name: d.name || 'Servicios' };
+
+  // Generar PDF (con loading)
+  showLoading('Generando PDF firmado…');
+  let pdfOk = false;
+  try {
+    pdfOk = await generatePDF(d.spec, finalVals, 'contrato-firmado-' + safeFilename(d.name) + '.pdf');
+  } finally {
+    hideLoading();
   }
 
-  // Generar PDF
-  doPrint(d.spec, finalVals);
+  // Mostrar modal de éxito
+  const successModal = document.getElementById('signSuccessModal');
+  successModal.classList.add('open');
+  successModal.removeAttribute('aria-hidden');
+  requestAnimationFrame(() => {
+    const firstBtn = successModal.querySelector('button');
+    if (firstBtn) firstBtn.focus();
+  });
+  if (pdfOk) toast('¡Contrato firmado! PDF descargado.', 'ok');
+  else       toast('¡Contrato firmado!', 'ok');
+}
 
-  toast('¡Contrato firmado! Se abre tu gestor de correo y el PDF.', 'ok');
+async function downloadSignedPDF() {
+  if (!_signedContext) return;
+  showLoading('Generando PDF firmado…');
+  try {
+    await generatePDF(_signedContext.spec, _signedContext.vals,
+      'contrato-firmado-' + safeFilename(_signedContext.name) + '.pdf');
+    toast('PDF descargado', 'ok');
+  } finally {
+    hideLoading();
+  }
+}
+
+function openSignedEmail() {
+  if (!_signedContext) return;
+  const v = _signedContext.vals;
+  const to = [v.provider_email, v.client_email].filter(Boolean).join(',');
+  if (!to) { toast('No hay emails configurados'); return; }
+  const subject = encodeURIComponent(`Contrato firmado — ${_signedContext.name}`);
+  const clientName = v.client_name || 'el cliente';
+  const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  const body = encodeURIComponent(
+    `Hola,\n\n${clientName} ha firmado el contrato de servicios el ${dateStr}.\n\nSe adjunta el PDF del contrato firmado.\n\nUn saludo.`
+  );
+  const a = document.createElement('a');
+  a.href = `mailto:${to}?subject=${subject}&body=${body}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function closeSignSuccess() {
+  const overlay = document.getElementById('signSuccessModal');
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
 }
 
 /* ══════════════════════════════════════════════
@@ -1960,8 +2534,9 @@ function renderCreate(root, hdr) {
     if (num < step) cls += ' done';
     else if (num === step) cls += ' active';
     const dotContent = num < step ? '✓' : num;
-    return `<div class="${cls}">
-      <div class="wiz-dot">${dotContent}</div>
+    const ariaCurrent = num === step ? ' aria-current="step"' : '';
+    return `<div class="${cls}"${ariaCurrent}>
+      <div class="wiz-dot" aria-hidden="true">${dotContent}</div>
       <div class="wiz-label">${label}</div>
     </div>`;
   }).join('');
@@ -1978,14 +2553,16 @@ function renderCreate(root, hdr) {
 
   if (step === 1) {
     const catCards = CATS.map(c => `
-      <div class="cat-card${d.category===c.id?' sel':''}" onclick="wizCat('${c.id}','${c.icon}')">
-        <span class="cat-em">${c.icon}</span>
+      <div class="cat-card${d.category===c.id?' sel':''}" onclick="wizCat('${c.id}','${c.icon}')"
+        tabindex="0" role="radio" aria-checked="${d.category===c.id?'true':'false'}"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();wizCat('${c.id}','${c.icon}')}">
+        <span class="cat-em" aria-hidden="true">${c.icon}</span>
         <span class="cat-name">${c.name}</span>
       </div>`).join('');
     body = `
       <div class="form-group">
         <label class="form-label">Categoría <span class="req">*</span></label>
-        <div class="cat-grid">${catCards}</div>
+        <div class="cat-grid" role="radiogroup" aria-label="Categoría del contrato">${catCards}</div>
       </div>
       <div class="form-group">
         <label class="form-label">Nombre de la plantilla <span class="req">*</span></label>
@@ -2039,8 +2616,10 @@ function renderCreate(root, hdr) {
 
   if (step === 4) {
     const rows = CLAUSE_DEFS.map(c => `
-      <div class="clause-row${d.clauses[c.id]?' sel':''}" onclick="wizToggle('${c.id}')">
-        <div class="clause-check">${d.clauses[c.id]?'✓':''}</div>
+      <div class="clause-row${d.clauses[c.id]?' sel':''}" onclick="wizToggle('${c.id}')"
+        tabindex="0" role="checkbox" aria-checked="${d.clauses[c.id]?'true':'false'}"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();wizToggle('${c.id}')}">
+        <div class="clause-check" aria-hidden="true">${d.clauses[c.id]?'✓':''}</div>
         <div>
           <div class="clause-info-t">${c.t}</div>
           <div class="clause-info-d">${c.d}</div>
@@ -2055,14 +2634,14 @@ function renderCreate(root, hdr) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Cancelar
       </button>
-      <div class="page-title">Nueva Plantilla</div>
+      <h1 class="page-title">Nueva Plantilla</h1>
       <p class="page-sub">Crea un modelo de contrato reutilizable en 4 pasos.</p>
 
       <div class="wizard-wrap">
-        <div class="wizard-progress">${progress}</div>
+        <nav class="wizard-progress" role="navigation" aria-label="Progreso del asistente">${progress}</nav>
         <div class="wiz-card">
           <div class="wiz-head">
-            <div class="wiz-title">${titles[step-1]}</div>
+            <h2 class="wiz-title">${titles[step-1]}</h2>
             <div class="wiz-sub">${subs[step-1]}</div>
           </div>
           <div class="wiz-body">${body}</div>
@@ -2132,9 +2711,131 @@ function wizSave() {
 }
 
 /* ══════════════════════════════════════════════
+   THEME
+══════════════════════════════════════════════ */
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.classList.contains('dark') ||
+    (!html.classList.contains('light') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if (isDark) {
+    html.classList.remove('dark');
+    html.classList.add('light');
+    localStorage.setItem('theme', 'light');
+  } else {
+    html.classList.remove('light');
+    html.classList.add('dark');
+    localStorage.setItem('theme', 'dark');
+  }
+  updateThemeToggle();
+}
+
+const SVG_SUN  = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+const SVG_MOON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+
+function updateThemeToggle() {
+  const btn = document.getElementById('themeToggle');
+  if (!btn) return;
+  const html = document.documentElement;
+  const isDark = html.classList.contains('dark') ||
+    (!html.classList.contains('light') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  btn.innerHTML = isDark ? SVG_SUN : SVG_MOON;
+  btn.title = isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+}
+
+/* ══════════════════════════════════════════════
+   FILL PROGRESS BAR
+══════════════════════════════════════════════ */
+function updateProgressBar() {
+  const bar   = document.getElementById('fillProgressBar');
+  const label = document.getElementById('fillProgressLabel');
+  if (!bar || !label) return;
+  const keys = ['provider_name', 'provider_nif', 'provider_email', 'provider_sig', 'client_name', 'client_email'];
+  const filled = keys.filter(k => {
+    const val = S.fillVals[k];
+    return val && (typeof val === 'string' ? val.trim() : true);
+  }).length;
+  const total = keys.length;
+  const done  = filled === total;
+  bar.style.width = Math.round((filled / total) * 100) + '%';
+  bar.style.background = done ? 'var(--success)' : 'var(--gold)';
+  label.textContent = filled + ' de ' + total + ' campos completados';
+  label.style.color = done ? 'var(--success)' : '';
+}
+
+/* ══════════════════════════════════════════════
+   FIRMA POR TEXTO (ALTERNATIVA ACCESIBLE)
+══════════════════════════════════════════════ */
+function showTextSig(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const wrap = canvas.closest('.sig-canvas-wrap');
+  if (!wrap) return;
+  wrap.style.display = 'none';
+  const altId = canvasId + '-text-alt';
+  let altDiv = document.getElementById(altId);
+  if (!altDiv) {
+    altDiv = document.createElement('div');
+    altDiv.id = altId;
+    altDiv.style.cssText = 'margin:4px 0 6px';
+    const safeId = esc(canvasId);
+    altDiv.innerHTML = `<input type="text" class="form-input" placeholder="Escribe tu nombre completo"
+      aria-label="Escribe tu nombre como firma"
+      oninput="genTextSig('${safeId}', this.value)" style="margin-bottom:6px">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="hideTextSig('${safeId}')">↩ Volver a dibujar</button>`;
+    wrap.insertAdjacentElement('afterend', altDiv);
+  } else {
+    altDiv.style.display = '';
+  }
+  const input = altDiv.querySelector('input');
+  if (input) setTimeout(() => input.focus(), 50);
+}
+
+function hideTextSig(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const wrap = canvas.closest('.sig-canvas-wrap');
+  if (wrap) wrap.style.display = '';
+  const altDiv = document.getElementById(canvasId + '-text-alt');
+  if (altDiv) altDiv.style.display = 'none';
+}
+
+function genTextSig(canvasId, name) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!name.trim()) {
+    canvas.classList.remove('has-sig');
+    if (canvasId === 'clientSigCanvas') updateSignBtn();
+    return;
+  }
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.font = 'italic 28px "Playfair Display", Georgia, serif';
+  ctx.fillStyle = '#1A1A1A';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name.trim(), 10, canvas.height / 2, canvas.width - 20);
+  canvas.classList.add('has-sig');
+  if (canvasId === 'providerSigCanvas') {
+    S.fillVals.provider_sig = canvasToJpeg(canvas);
+    const tpl = getTpl(S.selId);
+    if (tpl) document.getElementById('previewBody').innerHTML = renderContract(getResolvedSpec(tpl, S.fillVals), S.fillVals);
+    updateProgressBar();
+  } else if (canvasId === 'clientSigCanvas') {
+    updateSignBtn();
+  }
+}
+
+/* ══════════════════════════════════════════════
    BOOT
 ══════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
+  // Apply saved theme preference before first render
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark')  document.documentElement.classList.add('dark');
+  else if (savedTheme === 'light') document.documentElement.classList.add('light');
+  updateThemeToggle();
+
   const params = new URLSearchParams(window.location.search);
   const c = params.get('c');
   if (c) {
@@ -2143,6 +2844,7 @@ document.addEventListener('DOMContentLoaded', () => {
     else { S.view = 'badlink'; }
   }
   render();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 });
 </script>
 </body>

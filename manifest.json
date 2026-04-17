@@ -1,0 +1,16 @@
+{
+  "name": "Mis Contratos",
+  "short_name": "Contratos",
+  "description": "Gestiona y comparte contratos profesionales",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F5F0",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111111'/><polygon points='50,10 90,50 50,90 10,50' fill='%23C4943A'/></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
